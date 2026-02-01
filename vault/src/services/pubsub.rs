@@ -182,11 +182,14 @@ async fn process_pending_investment(
 ) -> Result<()> {
     use crate::services::transaction_verifier;
 
+    let expected_amount = rust_decimal::Decimal::try_from(pending.amount_usdc)
+        .unwrap_or(rust_decimal::Decimal::ZERO);
+
     let verification = transaction_verifier::verify_investment_tx(
         rpc_url,
         &pending.tx_hash,
         &pending.wallet_address,
-        pending.amount_usdc,
+        expected_amount,
     )
     .await?;
 
@@ -195,7 +198,7 @@ async fn process_pending_investment(
         return Err(anyhow::anyhow!("Transaction pending — will retry"));
     }
 
-    if !verification.valid {
+    if !verification.confirmed {
         tracing::warn!("Transaction {} failed verification", pending.tx_hash);
         // Record failure in DB
         sqlx::query(
@@ -224,7 +227,7 @@ async fn process_pending_investment(
     .bind(&pending.invention_id)
     .bind(&pending.tx_hash)
     .bind(&pending.wallet_address)
-    .bind(verification.amount)
+    .bind(verification.amount_usdc)
     .bind(verification.token_amount)
     .bind(verification.block_number as i64)
     .execute(pool)
@@ -237,7 +240,7 @@ async fn process_pending_investment(
             investment_id: pending.investment_id.clone(),
             invention_id: pending.invention_id.clone(),
             wallet_address: pending.wallet_address.clone(),
-            amount_usdc: verification.amount,
+            amount_usdc: verification.amount_usdc,
             token_amount: verification.token_amount,
             block_number: verification.block_number,
         })
