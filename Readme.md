@@ -1,52 +1,259 @@
+# IdeaCapital
 
-The Architecture: "The Event-Driven Social Indexer"
-This system uses the Blockchain as the Hard Truth (Ownership/Money) and Firebase as the Fast Cache (Social Feed/Comments/Likes). The entire system is glued together by an Asynchronous Event Bus.
-1. The Tech Stack
- * Frontend: Flutter (Dart).
-   * Why: Fast, beautiful UI for the "Social Feed." Handles the wallet connection (WalletConnect) and local state.
- * Backend Logic: TypeScript (Node.js) on Firebase Cloud Functions (Gen 2).
-   * Why: Native async/await support, massive ecosystem for both Web3 libraries (viem, ethers.js) and Social algorithms.
- * The "Nervous System" (Async Core): Google Cloud Pub/Sub.
-   * Why: This satisfies your "Async Foundation" requirement. When a user does anything, it fires an event. The app doesn't wait for the blockchain; it stays snappy.
- * Source of Truth: EVM Blockchain (Polygon/Base/Arbitrum).
-   * Role: Holds the Patent NFTs and Dividend Logic.
- * The Indexer: The Graph (or custom TS Indexer).
-   * Role: Watches the blockchain and syncs "Truth" back to your Firebase "Social Feed."
-2. How the "Async Source of Truth" Works
-To make a Web3 app feel like a snappy Web2 social network, you cannot query the blockchain every time a user scrolls their feed. You use the CQRS Pattern (Command Query Responsibility Segregation).
-The Flow: "The Optimistic Update"
- * User Action: User clicks "Invest 50 USDC" on a cool invention.
- * Async Trigger:
-   * The Flutter app sends the transaction to the Blockchain (The Source of Truth).
-   * Simultaneously, it sends an event to Cloud Pub/Sub: event: investment_pending.
- * Immediate Social Feedback:
-   * The UI immediately shows "Investment Processing..." and updates the progress bar (Optimistic UI).
- * Background Processing (TypeScript):
-   * A Cloud Function listens for the blockchain transaction to confirm.
-   * Once confirmed on-chain, it fires event: investment_confirmed.
- * Syncing Truth to Social:
-   * Another Cloud Function catches investment_confirmed and updates Firestore.
-   * Result: The "Invention Feed" updates for everyone to show "$50,000 Raised!"
-3. The "Social Agent" Onboarding (TypeScript + MCP)
-Since we are using TypeScript, the AI integration is seamless.
-The Feature: "The Pitch Deck Generator"
- * User: Uploads a rough PDF or voice note of their idea.
- * Async Process:
-   * File upload triggers a Cloud Storage Event.
-   * TypeScript Agent: Wakes up, sends the file to Gemini Pro 1.5.
-   * Task: "Convert this rough note into a structured 'Kickstarter-style' campaign page."
-   * Output: The Agent creates a title, summary, technical tags, and even generates a cover image using Imagen 3.
- * Result: The user gets a notification: "Your campaign draft is ready for review."
-4. Database Structure (The Hybrid)
-| Data Type | Where it lives | Why? |
-|---|---|---|
-| Patent Ownership | Blockchain | Immutable, censorship-resistant "Source of Truth." |
-| Dividend Rules | Smart Contract | Trustless payout logic (code is law). |
-| User Profiles | Firestore | Bio, Avatar, Reputation Score (Fast read). |
-| Social Feed | Firestore | The list of projects, optimized for infinite scroll. |
-| Comments/Likes | Firestore | High volume, low financial risk data. |
-| Chat/DMs | Firestore | Real-time comms between inventors and investors. |
-5. Why this fits "GoFundMe with ROI"
- * Discovery: You can build complex "Feeds" in Firestore (e.g., "Trending Inventions in Biotech," "New from your Friends") using TypeScript algorithms, which is hard to do directly on-chain.
- * Virality: Since the social layer is Firebase, sharing links, generating previews, and handling notifications is instant.
- * Trust: When money changes hands, it hits the Blockchain. Users know you (Paul) can't run away with the funds because the Smart Contract handles the dividends, not your bank account.
+**Decentralized Invention Capital Platform — Where Ideas Get Funded, Protected, and Paid.**
+
+IdeaCapital is a social funding platform that connects inventors with investors. Inventors post ideas, an AI agent structures them into patent-ready briefs, investors fund legal and prototyping costs in exchange for Royalty Tokens, and smart contracts distribute licensing revenue automatically.
+
+```
+Inventor posts idea → AI structures it → Community funds it → Smart contracts pay royalties
+```
+
+---
+
+## How It Works
+
+| Step | What Happens | Who Benefits |
+|------|-------------|--------------|
+| **1. Submit** | Inventor describes an idea (text, voice, or sketch) | Inventor gets a structured patent brief |
+| **2. AI Structures** | The Brain (AI agent) generates a patent-ready document | Invention becomes investable |
+| **3. Fund** | Investors back the invention with USDC via Crowdsale contract | Investors receive Royalty Tokens |
+| **4. Protect** | Legal costs are covered, patent is filed | Invention is protected on-chain as IP-NFT |
+| **5. Earn** | Licensing revenue is distributed via Merkle-proof dividends | Token holders receive proportional payouts |
+
+---
+
+## Architecture
+
+IdeaCapital uses an **Event-Driven Architecture** with blockchain as **Source of Truth** and Firebase as **Fast Cache**. All services communicate through Google Cloud Pub/Sub.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         CLIENTS                                     │
+│                    Flutter Mobile/Web                                │
+│           (Social Feed · Wallet · AI Chat · Invest)                 │
+└────────────────────────┬────────────────────────────────────────────┘
+                         │ HTTPS / Firebase SDK
+                         ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                    THE FACE — TypeScript Backend                     │
+│              Firebase Cloud Functions (Gen 2) + Express              │
+│                                                                     │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌───────────────────┐   │
+│  │Invention │  │Investment│  │ Social   │  │  Notification     │   │
+│  │ Service  │  │ Service  │  │ Service  │  │    Service        │   │
+│  └────┬─────┘  └────┬─────┘  └──────────┘  └───────────────────┘   │
+│       │              │                                              │
+└───────┼──────────────┼──────────────────────────────────────────────┘
+        │              │
+        ▼              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                  GOOGLE CLOUD PUB/SUB                                │
+│                                                                     │
+│   ai.processing ──► ai.processing.complete                          │
+│   invention.created                                                 │
+│   investment.pending ──► investment.confirmed                       │
+│   patent.status.updated                                             │
+└──────┬───────────────────────┬──────────────────────────────────────┘
+       │                       │
+       ▼                       ▼
+┌──────────────┐      ┌──────────────┐      ┌─────────────────────┐
+│  THE BRAIN   │      │  THE VAULT   │      │    EVM BLOCKCHAIN   │
+│  Python/     │      │  Rust/Axum   │      │  Polygon / Base     │
+│  FastAPI     │      │              │      │                     │
+│              │      │  Investment  │      │  ┌───────────────┐  │
+│  Gemini Pro  │      │  Verifier    │◄────►│  │   IP-NFT      │  │
+│  Patent      │      │  Dividend    │      │  │ (ERC-721)     │  │
+│  Search      │      │  Calculator  │      │  ├───────────────┤  │
+│  LangChain   │      │  Merkle Tree │      │  │ RoyaltyToken  │  │
+│              │      │  PostgreSQL  │      │  │ (ERC-20)      │  │
+└──────────────┘      └──────────────┘      │  ├───────────────┤  │
+                                            │  │  Crowdsale    │  │
+                                            │  ├───────────────┤  │
+                                            │  │ DividendVault │  │
+                                            │  └───────────────┘  │
+                                            └─────────────────────┘
+```
+
+---
+
+## Tech Stack
+
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| **Frontend** | Flutter (Dart) | Cross-platform mobile/web UI |
+| **Backend** | TypeScript, Firebase Functions Gen 2 | API gateway, event handlers, social logic |
+| **AI Engine** | Python, FastAPI, Vertex AI (Gemini Pro) | Invention structuring, patent analysis |
+| **Financial Engine** | Rust, Axum, PostgreSQL | Transaction verification, dividend distribution |
+| **Smart Contracts** | Solidity, Hardhat, OpenZeppelin | IP-NFT, Royalty Tokens, Crowdsale, Dividends |
+| **Blockchain** | Polygon / Base (EVM) | Source of truth for ownership and payments |
+| **Event Bus** | Google Cloud Pub/Sub | Async communication between all services |
+| **Database** | Firestore (social) + PostgreSQL (financial) | Hybrid storage optimized per use case |
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- Node.js 18+, npm
+- Rust 1.76+
+- Python 3.11+
+- Flutter 3.16+
+- Docker & Docker Compose
+
+### Local Development
+
+```bash
+# 1. Clone and configure
+git clone https://github.com/Domusgpt/Di-iP_Di-Fi.git
+cd Di-iP_Di-Fi
+cp .env.example .env   # Edit with your keys
+
+# 2. Start infrastructure
+docker compose up -d
+
+# 3. Install dependencies (run in parallel)
+cd contracts && npm install && cd ..
+cd backend/functions && npm install && cd ../..
+cd brain && pip install -r requirements.txt && cd ..
+cd frontend/ideacapital && flutter pub get && cd ../..
+
+# 4. Compile contracts
+cd contracts && npx hardhat compile && cd ..
+
+# 5. Run services
+# Terminal 1: Firebase emulators
+cd backend/functions && npm run build && firebase emulators:start
+
+# Terminal 2: Brain (AI agent)
+cd brain && uvicorn src.main:app --port 8081
+
+# Terminal 3: Vault (financial engine)
+cd vault && cargo run
+
+# Terminal 4: Flutter app
+cd frontend/ideacapital && flutter run
+```
+
+See [docs/getting-started.md](docs/getting-started.md) for the full onboarding guide.
+
+---
+
+## Project Structure
+
+```
+Di-iP_Di-Fi/
+├── frontend/ideacapital/    # Flutter app (The Face - UI)
+│   ├── lib/
+│   │   ├── models/          # Dart data models (mirrors InventionSchema)
+│   │   ├── providers/       # Riverpod state management
+│   │   ├── screens/         # UI screens (feed, auth, invention, invest, profile)
+│   │   ├── widgets/         # Reusable widgets (cards, comments, likes)
+│   │   └── services/        # HTTP client for Cloud Functions API
+│   └── pubspec.yaml
+│
+├── backend/functions/       # TypeScript Cloud Functions (The Face - API)
+│   ├── src/
+│   │   ├── services/        # REST endpoints (invention, investment, social, notification)
+│   │   ├── events/          # Pub/Sub handlers (AI, investment, invention, chain indexer)
+│   │   ├── middleware/      # Auth middleware
+│   │   └── models/          # TypeScript interfaces
+│   └── package.json
+│
+├── brain/                   # Python AI Agent (The Brain)
+│   ├── src/
+│   │   ├── agents/          # Invention analysis agent (FastAPI router)
+│   │   ├── services/        # LLM, patent search, Pub/Sub listener
+│   │   ├── models/          # Pydantic models (mirrors InventionSchema)
+│   │   └── prompts/         # System prompts for Gemini
+│   ├── tests/               # pytest test suite
+│   └── pyproject.toml
+│
+├── vault/                   # Rust Financial Engine (The Vault)
+│   ├── src/
+│   │   ├── routes/          # Axum HTTP handlers (investments, dividends)
+│   │   ├── services/        # Chain watcher, Pub/Sub, transaction verifier
+│   │   ├── crypto/          # Merkle tree implementation
+│   │   └── models/          # Structs for investments, dividends
+│   ├── migrations/          # PostgreSQL schema
+│   └── Cargo.toml
+│
+├── contracts/               # Solidity Smart Contracts
+│   ├── contracts/           # IPNFT, RoyaltyToken, Crowdsale, DividendVault
+│   ├── test/                # Hardhat test suites
+│   ├── scripts/             # Deployment scripts
+│   └── hardhat.config.ts
+│
+├── infra/                   # Infrastructure configuration
+│   ├── firebase.json        # Firebase project config
+│   ├── firestore/           # Security rules + indexes
+│   └── pubsub/              # Topic definitions
+│
+├── schemas/                 # Canonical data contracts
+│   └── InventionSchema.json # THE schema — mirrored in all 4 languages
+│
+├── docs/                    # Documentation suite
+├── .github/workflows/       # CI pipeline
+├── docker-compose.yml       # Local development stack
+├── CLAUDE.md                # Claude Code project instructions
+└── ARCHITECTURE.md          # Development track & integration plan
+```
+
+---
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Getting Started](docs/getting-started.md) | Developer onboarding and local setup |
+| [Architecture](docs/architecture.md) | System design, data flow, trade-offs |
+| [API Reference](docs/api-reference.md) | Full REST endpoint documentation |
+| [Data Model](docs/data-model.md) | Firestore + PostgreSQL schema reference |
+| [Smart Contracts](docs/smart-contracts.md) | Solidity contract interfaces and deployment |
+| [Event Architecture](docs/event-driven-architecture.md) | Pub/Sub topics, message formats, flow diagrams |
+| [AI Agent Guide](docs/ai-agent-guide.md) | The Brain: prompts, conversation flow, integration |
+| [Deployment](docs/deployment.md) | Production deployment playbook |
+| [Security Model](docs/security-model.md) | Authentication, authorization, Firestore rules |
+| [Contributing](CONTRIBUTING.md) | How to contribute to the project |
+
+### Sub-Agent Specifications
+
+| Agent | Description |
+|-------|-------------|
+| [Agent Overview](docs/agents/overview.md) | Architecture of the sub-agent system |
+| [The Face](docs/agents/the-face.md) | Flutter UI + TypeScript backend specification |
+| [The Vault](docs/agents/the-vault.md) | Rust financial engine specification |
+| [The Brain](docs/agents/the-brain.md) | Python AI agent specification |
+
+---
+
+## Testing
+
+```bash
+# Smart contracts
+cd contracts && npx hardhat test
+
+# Python Brain
+cd brain && pytest tests/ -v
+
+# TypeScript backend
+cd backend/functions && npm run lint && npm run build
+
+# Rust Vault
+cd vault && cargo test
+```
+
+---
+
+## License
+
+Proprietary. All rights reserved.
+
+---
+
+## Links
+
+- [Architecture Decision Records](ARCHITECTURE.md)
+- [Canonical Schema](schemas/InventionSchema.json)
+- [Docker Compose Stack](docker-compose.yml)
+- [CI Pipeline](.github/workflows/ci.yml)
