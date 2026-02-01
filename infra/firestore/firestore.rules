@@ -9,6 +9,13 @@ service cloud.firestore {
       allow read: if true;
       // Only the user can update their own profile
       allow write: if request.auth != null && request.auth.uid == userId;
+
+      // ---- Notifications (subcollection) ----
+      match /notifications/{notificationId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        // Only Cloud Functions write notifications (via admin SDK)
+        allow write: if false;
+      }
     }
 
     // ---- Inventions ----
@@ -20,6 +27,54 @@ service cloud.firestore {
       allow update: if request.auth != null
         && resource.data.creator_id == request.auth.uid;
       allow delete: if false; // Inventions are immutable once created
+
+      // ---- Comments (subcollection) ----
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if request.auth != null;
+        allow update: if request.auth != null
+          && resource.data.user_id == request.auth.uid;
+        allow delete: if request.auth != null
+          && resource.data.user_id == request.auth.uid;
+      }
+
+      // ---- Likes (subcollection) ----
+      match /likes/{userId} {
+        allow read: if true;
+        allow write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // ---- Conversation History (subcollection, written by Brain via admin SDK) ----
+      match /conversation_history/{turnId} {
+        // Creator can read their invention's conversation
+        allow read: if request.auth != null;
+        // Only Cloud Functions / Brain write here
+        allow write: if false;
+      }
+    }
+
+    // ---- Following / Followers ----
+    match /following/{userId} {
+      allow read: if true;
+      // Only the owner can manage their own following list
+      allow write: if request.auth != null && request.auth.uid == userId;
+
+      match /user_following/{targetUserId} {
+        allow read: if true;
+        allow write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    match /followers/{userId} {
+      allow read: if true;
+      // Written by Cloud Functions when a follow/unfollow occurs
+      allow write: if false;
+
+      match /user_followers/{followerUserId} {
+        allow read: if true;
+        // Written by Cloud Functions
+        allow write: if false;
+      }
     }
 
     // ---- Pledges (Phase 1 mock investments) ----
@@ -34,22 +89,6 @@ service cloud.firestore {
       allow read: if request.auth != null;
       // Only Cloud Functions can write investments (via admin SDK)
       allow write: if false;
-    }
-
-    // ---- Comments ----
-    match /inventions/{inventionId}/comments/{commentId} {
-      allow read: if true;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null
-        && resource.data.user_id == request.auth.uid;
-      allow delete: if request.auth != null
-        && resource.data.user_id == request.auth.uid;
-    }
-
-    // ---- Likes ----
-    match /inventions/{inventionId}/likes/{userId} {
-      allow read: if true;
-      allow write: if request.auth != null && request.auth.uid == userId;
     }
 
     // ---- Feed Index (read-only for clients) ----

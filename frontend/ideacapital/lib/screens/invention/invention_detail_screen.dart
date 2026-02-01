@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:go_router/go_router.dart';
 import '../../providers/feed_provider.dart';
 import '../../providers/wallet_provider.dart';
+import '../../widgets/like_button.dart';
+import '../../widgets/comment_section.dart';
 
 class InventionDetailScreen extends ConsumerWidget {
   final String inventionId;
@@ -60,14 +63,21 @@ class InventionDetailScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Tags
-                      if (social.viralityTags != null)
-                        Wrap(
-                          spacing: 8,
-                          children: social.viralityTags!
-                              .map((t) => Chip(label: Text(t)))
-                              .toList(),
-                        ),
+                      // Tags + Like button row
+                      Row(
+                        children: [
+                          if (social.viralityTags != null)
+                            Expanded(
+                              child: Wrap(
+                                spacing: 8,
+                                children: social.viralityTags!
+                                    .map((t) => Chip(label: Text(t)))
+                                    .toList(),
+                              ),
+                            ),
+                          LikeButton(inventionId: inventionId),
+                        ],
+                      ),
                       const SizedBox(height: 16),
 
                       // Short pitch
@@ -142,6 +152,11 @@ class InventionDetailScreen extends ConsumerWidget {
                         ],
                       ],
 
+                      const SizedBox(height: 32),
+
+                      // Comments section
+                      CommentSection(inventionId: inventionId),
+
                       const SizedBox(height: 80), // Space for FAB
                     ],
                   ),
@@ -157,7 +172,7 @@ class InventionDetailScreen extends ConsumerWidget {
                 if (!wallet.isConnected) {
                   ref.read(walletProvider.notifier).connect();
                 } else {
-                  _showInvestDialog(context, ref);
+                  context.push('/invest/$inventionId');
                 }
               },
               icon: Icon(wallet.isConnected
@@ -169,33 +184,6 @@ class InventionDetailScreen extends ConsumerWidget {
             )
           : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-    );
-  }
-
-  void _showInvestDialog(BuildContext context, WidgetRef ref) {
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Back This Invention',
-              style: Theme.of(ctx).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 16),
-            // TODO: Investment amount selector, USDC balance display,
-            // confirmation button that triggers wallet transaction
-            const Text('Investment flow coming in Phase 2'),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Close'),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

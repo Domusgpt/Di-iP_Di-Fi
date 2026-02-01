@@ -11,7 +11,12 @@ import logging
 import os
 from typing import Optional
 
+import httpx
+
 logger = logging.getLogger(__name__)
+
+# Base URL for the local FastAPI invention agent endpoints
+_AGENT_BASE = os.getenv("AGENT_BASE_URL", "http://127.0.0.1:8081")
 
 
 def start_pubsub_listener() -> Optional[asyncio.Task]:
@@ -31,6 +36,60 @@ def start_pubsub_listener() -> Optional[asyncio.Task]:
     return asyncio.create_task(_listen_loop(project_id))
 
 
+async def _process_initial_analysis(data: dict, project_id: str):
+    """Call the invention agent's /analyze endpoint and publish the result."""
+    invention_id = data["invention_id"]
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        resp = await client.post(
+            f"{_AGENT_BASE}/api/v1/brain/analyze",
+            json={
+                "invention_id": invention_id,
+                "creator_id": data.get("creator_id", ""),
+                "raw_text": data.get("raw_text"),
+                "voice_url": data.get("voice_url"),
+                "sketch_url": data.get("sketch_url"),
+            },
+        )
+        resp.raise_for_status()
+        result = resp.json()
+
+    await publish_completion(
+        project_id,
+        invention_id,
+        action="INITIAL_ANALYSIS",
+        structured_data={
+            "social_metadata": result.get("social_metadata", {}),
+            "technical_brief": result.get("technical_brief", {}),
+            "risk_assessment": result.get("risk_assessment", {}),
+        },
+    )
+    logger.info(f"Published INITIAL_ANALYSIS completion for {invention_id}")
+
+
+async def _process_continue_chat(data: dict, project_id: str):
+    """Call the invention agent's /chat endpoint and publish the result."""
+    invention_id = data["invention_id"]
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        resp = await client.post(
+            f"{_AGENT_BASE}/api/v1/brain/chat",
+            json={
+                "invention_id": invention_id,
+                "creator_id": data.get("creator_id", ""),
+                "message": data.get("message", ""),
+            },
+        )
+        resp.raise_for_status()
+        result = resp.json()
+
+    await publish_completion(
+        project_id,
+        invention_id,
+        action="CHAT_RESPONSE",
+        structured_data=result.get("updated_fields", {}),
+    )
+    logger.info(f"Published CHAT_RESPONSE completion for {invention_id}")
+
+
 async def _listen_loop(project_id: str):
     """Main listener loop."""
     try:
@@ -40,6 +99,8 @@ async def _listen_loop(project_id: str):
         subscription_path = subscriber.subscription_path(
             project_id, "ai-processing-brain-sub"
         )
+
+        loop = asyncio.get_event_loop()
 
         def callback(message):
             """Process incoming Pub/Sub message."""
@@ -51,13 +112,13 @@ async def _listen_loop(project_id: str):
                 logger.info(f"Received message: action={action}, invention={invention_id}")
 
                 if action == "INITIAL_ANALYSIS":
-                    # TODO: Call invention_agent.analyze_idea()
-                    # TODO: Publish result to ai.processing.complete
-                    pass
+                    asyncio.run_coroutine_threadsafe(
+                        _process_initial_analysis(data, project_id), loop
+                    )
                 elif action == "CONTINUE_CHAT":
-                    # TODO: Call invention_agent.continue_chat()
-                    # TODO: Publish result to ai.processing.complete
-                    pass
+                    asyncio.run_coroutine_threadsafe(
+                        _process_continue_chat(data, project_id), loop
+                    )
                 else:
                     logger.warning(f"Unknown action: {action}")
 

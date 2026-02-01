@@ -13,7 +13,7 @@ export interface NotificationPayload {
   userId: string;
   title: string;
   body: string;
-  type: "investment_confirmed" | "invention_funded" | "comment" | "like" | "draft_ready" | "patent_update";
+  type: "investment_confirmed" | "invention_funded" | "comment" | "like" | "draft_ready" | "patent_update" | "new_invention";
   data?: Record<string, string>;
 }
 
