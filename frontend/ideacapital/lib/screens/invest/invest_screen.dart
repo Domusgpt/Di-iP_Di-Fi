@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dio/dio.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../providers/wallet_provider.dart';
 
 /// Full-screen investment flow for backing a project with USDC.
@@ -16,8 +18,20 @@ class _InvestScreenState extends ConsumerState<InvestScreen> {
   double _amount = 50.0;
   bool _isSubmitting = false;
   String? _txHash;
+  String _status = ''; // Progress status message
 
+  final _dio = Dio();
   final List<double> _presetAmounts = [25, 50, 100, 250, 500, 1000];
+
+  // Contract addresses (from environment or config)
+  static const _usdcContract = String.fromEnvironment(
+    'USDC_CONTRACT',
+    defaultValue: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', // Polygon USDC
+  );
+  static const _crowdsaleContract = String.fromEnvironment(
+    'CROWDSALE_CONTRACT',
+    defaultValue: '0x0000000000000000000000000000000000000000',
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -129,15 +143,101 @@ class _InvestScreenState extends ConsumerState<InvestScreen> {
   }
 
   Future<void> _invest() async {
-    final wallet = ref.read(walletProvider.notifier);
-    setState(() => _isSubmitting = true);
+    final walletState = ref.read(walletProvider);
+    final walletNotifier = ref.read(walletProvider.notifier);
+
+    if (!walletState.isConnected) {
+      // Prompt wallet connection first
+      await walletNotifier.connect();
+      final updated = ref.read(walletProvider);
+      if (!updated.isConnected) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please connect your wallet first')),
+          );
+        }
+        return;
+      }
+    }
+
+    setState(() {
+      _isSubmitting = true;
+      _status = 'Approving USDC...';
+    });
 
     try {
-      // TODO: Build the Crowdsale contract call data
-      // TODO: Send via wallet.sendTransaction()
-      // The optimistic UI update happens via Pub/Sub -> Firestore
-      await Future.delayed(const Duration(seconds: 2)); // Placeholder
-      setState(() => _txHash = '0xabc123...placeholder');
+      // USDC uses 6 decimal places
+      final amountInSmallestUnit = BigInt.from((_amount * 1e6).toInt());
+
+      // Step 1: Approve USDC spending for the Crowdsale contract
+      final approvalTx = await walletNotifier.approveUsdc(
+        usdcContract: _usdcContract,
+        spender: _crowdsaleContract,
+        amount: amountInSmallestUnit,
+      );
+
+      if (approvalTx == null) {
+        throw Exception('USDC approval was rejected');
+      }
+
+      if (mounted) {
+        setState(() => _status = 'Sending investment transaction...');
+      }
+
+      // Step 2: Call invest() on the Crowdsale contract
+      // invest(uint256 amount) selector: 0x1de26e16
+      // But for Crowdsale with inventionId, use: investInProject(bytes32,uint256)
+      // Selector: keccak256("investInProject(bytes32,uint256)")[:4]
+      final amountHex = amountInSmallestUnit.toRadixString(16).padLeft(64, '0');
+      // Pad inventionId as bytes32
+      final idBytes = widget.inventionId.replaceAll('-', '');
+      final idPadded = idBytes.padLeft(64, '0');
+      final investData = '0xb3db428b$idPadded$amountHex'; // investInProject(bytes32,uint256)
+
+      final txHash = await walletNotifier.sendTransaction(
+        to: _crowdsaleContract,
+        value: BigInt.zero,
+        data: investData,
+      );
+
+      if (txHash == null) {
+        throw Exception('Transaction was rejected');
+      }
+
+      if (mounted) {
+        setState(() {
+          _txHash = txHash;
+          _status = 'Recording investment...';
+        });
+      }
+
+      // Step 3: Record investment in backend (creates PENDING state)
+      final user = FirebaseAuth.instance.currentUser;
+      final token = await user?.getIdToken();
+
+      await _dio.post(
+        '/api/investments/${widget.inventionId}/invest',
+        data: {
+          'amount_usdc': _amount,
+          'tx_hash': txHash,
+          'wallet_address': walletState.address,
+        },
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+          sendTimeout: const Duration(seconds: 30),
+          receiveTimeout: const Duration(seconds: 30),
+        ),
+      );
+
+      if (mounted) {
+        setState(() => _status = 'Investment submitted!');
+      }
+    } on DioException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Backend error: ${e.message}')),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

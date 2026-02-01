@@ -136,13 +136,12 @@ describe("Crowdsale", function () {
       expect(await crowdsale.goalReached()).to.equal(true);
     });
 
-    it("should allow over-funding", async function () {
+    it("should reject over-funding that exceeds token supply", async function () {
       const overAmount = GOAL + ethers.parseUnits("500", 6);
       await mockUSDC.connect(investor1).approve(await crowdsale.getAddress(), overAmount);
-      await crowdsale.connect(investor1).invest(overAmount);
 
-      expect(await crowdsale.totalRaised()).to.equal(overAmount);
-      expect(await crowdsale.goalReached()).to.equal(true);
+      await expect(crowdsale.connect(investor1).invest(overAmount))
+        .to.be.revertedWith("Exceeds max supply");
     });
   });
 

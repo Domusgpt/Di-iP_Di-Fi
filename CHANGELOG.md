@@ -6,6 +6,41 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.4.0] - 2026-02-01
+
+### Added
+
+- **Frontend:** WalletConnect v2 integration in `wallet_provider.dart` — full session management, `connect()`, `disconnect()`, `sendTransaction()` via `Web3App` with EIP155/Polygon (chainId 137) support.
+- **Frontend:** Real investment transaction flow in `invest_screen.dart` — USDC approve + Crowdsale invest contract calls, backend POST to record pending investment, optimistic UI with real tx hash.
+- **Frontend:** Voice recording in `create_invention_screen.dart` via `record` package with start/stop toggle and duration indicator.
+- **Frontend:** Sketch upload to Firebase Storage with preview thumbnail in create invention flow.
+- **Frontend:** Brain API submission — POSTs to `/api/inventions/analyze` with text, voice URL, and sketch URL; navigates to invention detail on success.
+- **Frontend:** Vib3+ 4D shader SDK integration — `Vib3Background` widget (WebGL on web, gradient fallback on native), `Vib3Card` widget with per-invention procedural shader backgrounds, `Vib3Provider` Riverpod state management.
+- **Frontend:** `vib3-loader.js` — Web entrypoint script that registers Flutter platform views and renders procedural 4D geometry shaders via WebGL2 fullscreen quads with ray marching.
+- **Vault:** Production Pub/Sub client — `start_investment_listener()` uses `google_cloud_pubsub::Client` to subscribe to `investment-pending-vault-sub`, verify transactions, record to PostgreSQL, and publish confirmations.
+- **Vault:** Chain watcher completed — full Investment event log decoding with `ethers::abi::decode`, amount extraction (USDC 6 decimals / tokens 18 decimals), PostgreSQL recording, and Pub/Sub publishing.
+- **Vault:** Service-to-service HMAC-SHA256 authentication middleware — timestamp-signed `X-Vault-Auth` header verification with 5-minute drift tolerance, dev-mode bypass.
+- **Brain:** Voice transcription via Vertex AI Speech-to-Text (`google.cloud.speech_v2`) in invention agent `/analyze` endpoint with graceful mock fallback.
+- **Brain:** Sketch analysis via Gemini 1.5 Flash Vision API in invention agent — sends image URL with technical description prompt.
+- **Brain:** `continue_chat()` fully wired — loads Firestore draft, conversation history, identifies empty schema fields, passes full context to LLM.
+- **Brain:** Patent search via SerpAPI Google Patents endpoint — real API integration with keyword overlap similarity scoring, top-5 results, mock fallback.
+- **Backend:** Unit test suite — `invention-service.test.ts`, `investment-service.test.ts`, `notification-service.test.ts` with Jest mocks for Firestore, Pub/Sub, and uuid.
+
+### Changed
+
+- **Vault:** `pubsub.rs` upgraded from stub mode to production Google Cloud Pub/Sub with graceful fallback.
+- **Vault:** `chain_watcher.rs` event handler now decodes logs, verifies amounts with 1% slippage tolerance, and records to DB.
+- **Vault:** Added `hmac` dependency to `Cargo.toml` for auth middleware.
+
+### Documentation
+
+- **New:** `docs/vib3-integration.md` — Vib3+ shader SDK integration guide with architecture overview, widget API, web loader reference, and customization instructions.
+- **Updated:** `CHANGELOG.md` — Sprint 4 entry.
+- **Updated:** `Readme.md` — Added Vib3+ to tech stack, shader SDK section, and updated project structure.
+- **Updated:** `CLAUDE.md` — Added Vib3+ integration context and widget reference.
+
+---
+
 ## [0.3.0] - 2026-02-01
 
 ### Added

@@ -97,7 +97,7 @@ router.post("/:inventionId/comments", async (req: AuthenticatedRequest, res: Res
     .doc(commentId)
     .set(comment);
 
-  res.status(201).json({ comment_id: commentId, ...comment });
+  res.status(201).json(comment);
 });
 
 /**
