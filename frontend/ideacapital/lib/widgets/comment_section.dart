@@ -14,7 +14,7 @@ final commentsProvider = StreamProvider.family<List<Map<String, dynamic>>, Strin
         .orderBy('created_at', descending: true)
         .limit(50)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) => {
+        .map((snapshot) => snapshot.docs.map((doc) {
               final data = doc.data();
               data['id'] = doc.id;
               return data;

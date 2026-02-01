@@ -51,7 +51,7 @@ dependencies:
   timeago: ^3.6.1
 
   # Audio/Voice
-  record: ^5.0.5
+  record: ^5.2.1
   just_audio: ^0.9.36
 
   cupertino_icons: ^1.0.6
@@ -65,6 +65,9 @@ dev_dependencies:
   freezed: ^2.4.6
   riverpod_generator: ^2.3.9
   mockito: ^5.4.4
+
+dependency_overrides:
+  record_platform_interface: 1.4.0
 
 flutter:
   uses-material-design: true
