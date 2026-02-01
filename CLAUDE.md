@@ -149,5 +149,25 @@ docker compose up -d
 - **Contracts**: Hardhat tests with ethers.js — test all financial edge cases
 - **Brain**: pytest with mock LLM responses — test agent endpoints and output structure
 - **Vault**: Rust unit tests for token_calculator and merkle modules
-- **Backend**: Build verification (TypeScript strict mode catches most issues)
+- **Backend**: Jest unit tests for invention, investment, and notification services
 - **Flutter**: Model serialization tests (once build_runner generates `.g.dart` files)
+
+## Vib3+ Shader SDK Integration
+
+IdeaCapital integrates the Vib3+ 4D visualization SDK for procedural shader backgrounds.
+
+- **Source:** `https://github.com/Domusgpt/Vib3-CORE-Documented01-` (branch: `claude/phase-5-hardening-a4Wzn`)
+- **Web rendering:** WebGL2 via `HtmlElementView` + `vib3-loader.js`
+- **Native fallback:** Gradient placeholder on iOS/Android
+- **Widgets:** `Vib3Background` (full-area shader), `Vib3Card` (per-invention procedural visual)
+- **State:** `vib3Provider` (Riverpod) controls system, geometry, speed, audio reactivity
+- **Docs:** See `docs/vib3-integration.md` for full integration guide
+
+### Key files
+
+| File | Purpose |
+|------|---------|
+| `frontend/ideacapital/lib/widgets/vib3_background.dart` | Shader background widget (web + native fallback) |
+| `frontend/ideacapital/lib/widgets/vib3_card.dart` | Invention card with shader decoration |
+| `frontend/ideacapital/lib/providers/vib3_provider.dart` | Riverpod state for shader config |
+| `frontend/ideacapital/web/vib3-loader.js` | WebGL platform view factory + fragment shader |

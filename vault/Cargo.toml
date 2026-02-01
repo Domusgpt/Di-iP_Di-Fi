@@ -28,6 +28,7 @@ google-cloud-default = { version = "0.5", features = ["pubsub"] }
 
 # Crypto
 sha2 = "0.10"
+hmac = "0.12"
 hex = "0.4"
 merkle-cbt = "0.3"
 

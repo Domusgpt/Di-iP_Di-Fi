@@ -81,6 +81,7 @@ IdeaCapital uses an **Event-Driven Architecture** with blockchain as **Source of
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
 | **Frontend** | Flutter (Dart) | Cross-platform mobile/web UI |
+| **Shader Engine** | Vib3+ SDK (WebGL/WebGPU) | Procedural 4D shader backgrounds and visual identity |
 | **Backend** | TypeScript, Firebase Functions Gen 2 | API gateway, event handlers, social logic |
 | **AI Engine** | Python, FastAPI, Vertex AI (Gemini Pro) | Invention structuring, patent analysis |
 | **Financial Engine** | Rust, Axum, PostgreSQL | Transaction verification, dividend distribution |
@@ -214,6 +215,7 @@ Di-iP_Di-Fi/
 | [AI Agent Guide](docs/ai-agent-guide.md) | The Brain: prompts, conversation flow, integration |
 | [Deployment](docs/deployment.md) | Production deployment playbook |
 | [Security Model](docs/security-model.md) | Authentication, authorization, Firestore rules |
+| [Vib3+ Integration](docs/vib3-integration.md) | Shader SDK integration, widgets, customization |
 | [Contributing](CONTRIBUTING.md) | How to contribute to the project |
 
 ### Sub-Agent Specifications
@@ -237,7 +239,7 @@ cd contracts && npx hardhat test
 cd brain && pytest tests/ -v
 
 # TypeScript backend
-cd backend/functions && npm run lint && npm run build
+cd backend/functions && npm test
 
 # Rust Vault
 cd vault && cargo test
