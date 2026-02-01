@@ -1,0 +1,162 @@
+###############################################################################
+# IdeaCapital - Development Environment
+#
+# Lashes together the three core services:
+#   1. vault    (Rust/Axum)   - Financial backend + blockchain ops
+#   2. brain    (Python/FastAPI) - AI agent + patent analysis
+#   3. firebase (TS emulator)  - Firebase Functions + Firestore + Auth
+#
+# Plus supporting infrastructure:
+#   - PostgreSQL (Vault's financial ledger)
+#   - Redis      (Caching / rate limiting)
+#   - Hardhat    (Local EVM blockchain for contract testing)
+#
+# Usage:
+#   docker compose up            # Start everything
+#   docker compose up vault      # Start only the Vault + its deps
+#   docker compose up brain      # Start only the Brain
+#   docker compose logs -f vault # Follow Vault logs
+###############################################################################
+
+version: "3.9"
+
+services:
+  # =====================================================================
+  # THE VAULT (Rust Financial Backend)
+  # Sub-Agent B - Handles blockchain verification, dividends, Merkle trees
+  # Integration: Subscribes to Pub/Sub, writes to PostgreSQL, reads blockchain
+  # =====================================================================
+  vault:
+    build:
+      context: ./vault
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - VAULT_PORT=8080
+      - VAULT_DATABASE_URL=postgres://ideacapital:ideacapital@postgres:5432/ideacapital
+      - VAULT_REDIS_URL=redis://redis:6379
+      - RPC_URL=${RPC_URL:-http://hardhat:8545}
+      - RUST_LOG=ideacapital_vault=debug,tower_http=info
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - ideacapital
+
+  # =====================================================================
+  # THE BRAIN (Python AI Agent)
+  # Sub-Agent C - Invention analysis, patent structuring, prior art search
+  # Integration: Subscribes to Pub/Sub, calls Vertex AI, updates Firestore
+  # =====================================================================
+  brain:
+    build:
+      context: ./brain
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      - BRAIN_PORT=8081
+      - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT:-ideacapital-dev}
+      - VERTEX_AI_PROJECT=${VERTEX_AI_PROJECT:-ideacapital-dev}
+      - VERTEX_AI_LOCATION=${VERTEX_AI_LOCATION:-us-central1}
+      - GOOGLE_PATENTS_API_KEY=${GOOGLE_PATENTS_API_KEY:-}
+      - FIRESTORE_EMULATOR_HOST=firebase:8081
+    depends_on:
+      - firebase
+    networks:
+      - ideacapital
+
+  # =====================================================================
+  # FIREBASE EMULATOR SUITE
+  # Sub-Agent A's backend - Auth, Firestore, Functions, Pub/Sub
+  # The TypeScript Cloud Functions run inside this emulator
+  # =====================================================================
+  firebase:
+    image: node:20-slim
+    working_dir: /app
+    command: >
+      bash -c "
+        npm install -g firebase-tools &&
+        cd /app/backend/functions && npm install &&
+        cd /app &&
+        firebase emulators:start --project ideacapital-dev
+      "
+    ports:
+      - "4000:4000"   # Emulator UI
+      - "5001:5001"   # Cloud Functions
+      - "8082:8080"   # Firestore (remapped to avoid conflict with vault)
+      - "9099:9099"   # Auth
+      - "8085:8085"   # Pub/Sub
+    volumes:
+      - ./backend:/app/backend
+      - ./infra/firebase.json:/app/firebase.json
+      - ./infra/firestore/firestore.rules:/app/firestore.rules
+    environment:
+      - GOOGLE_CLOUD_PROJECT=ideacapital-dev
+      - VAULT_URL=http://vault:8080
+      - BRAIN_URL=http://brain:8081
+    networks:
+      - ideacapital
+
+  # =====================================================================
+  # HARDHAT NODE (Local EVM Blockchain)
+  # Used for local smart contract testing and development
+  # =====================================================================
+  hardhat:
+    image: node:20-slim
+    working_dir: /app
+    command: >
+      bash -c "
+        npm install &&
+        npx hardhat node --hostname 0.0.0.0
+      "
+    ports:
+      - "8545:8545"
+    volumes:
+      - ./contracts:/app
+    networks:
+      - ideacapital
+
+  # =====================================================================
+  # POSTGRESQL (Financial Ledger - Cold Storage)
+  # The Vault's source of truth for financial records
+  # =====================================================================
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=ideacapital
+      - POSTGRES_PASSWORD=ideacapital
+      - POSTGRES_DB=ideacapital
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./vault/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ideacapital"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ideacapital
+
+  # =====================================================================
+  # REDIS (Caching Layer)
+  # Used by Vault for rate limiting and caching blockchain queries
+  # =====================================================================
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - ideacapital
+
+volumes:
+  pgdata:
+
+networks:
+  ideacapital:
+    driver: bridge
