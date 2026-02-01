@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/feed_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/notification_provider.dart';
 import '../../widgets/invention_card.dart';
 
 class FeedScreen extends ConsumerWidget {
@@ -13,6 +14,7 @@ class FeedScreen extends ConsumerWidget {
     final filter = ref.watch(feedFilterProvider);
     final feedAsync = ref.watch(inventionFeedProvider(filter));
     final user = ref.watch(currentUserProvider);
+    final unreadCount = ref.watch(unreadCountProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -23,15 +25,15 @@ class FeedScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
-            onPressed: () {
-              // TODO: Navigate to search
-            },
+            onPressed: () => context.push('/search'),
           ),
           IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {
-              // TODO: Navigate to notifications
-            },
+            icon: Badge(
+              isLabelVisible: unreadCount > 0,
+              label: Text('$unreadCount'),
+              child: const Icon(Icons.notifications_outlined),
+            ),
+            onPressed: () => context.push('/notifications'),
           ),
           if (user != null)
             GestureDetector(

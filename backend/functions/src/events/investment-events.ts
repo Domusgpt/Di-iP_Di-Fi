@@ -9,6 +9,7 @@
 import { onMessagePublished } from "firebase-functions/v2/pubsub";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
+import { notifyInvestmentConfirmed, notifyInventionFunded } from "../services/notification-service";
 
 const db = admin.firestore();
 
@@ -71,9 +72,27 @@ export const onInvestmentConfirmed = onMessagePublished(
 
     await batch.commit();
 
-    // TODO: Send push notification to the investor
-    // "You now own X% of [Project Name]!"
+    // Send push notification to the investor
+    const investmentDoc = await db.collection("investments").doc(investment_id).get();
+    const investorUserId = investmentDoc.data()?.user_id;
+    const inventionDoc = await db.collection("inventions").doc(invention_id).get();
+    const inventionData = inventionDoc.data();
+    const inventionTitle = inventionData?.social_metadata?.display_title || "an invention";
+    const totalSupply = inventionData?.funding?.token_supply || 1;
+    const ownershipPercent = (token_amount / totalSupply) * 100;
 
-    // TODO: Check if funding goal is reached → trigger minting flow
+    if (investorUserId) {
+      await notifyInvestmentConfirmed(investorUserId, inventionTitle, amount_usdc, ownershipPercent);
+    }
+
+    // Check if funding goal is reached → notify inventor
+    const updatedDoc = await db.collection("inventions").doc(invention_id).get();
+    const funding = updatedDoc.data()?.funding;
+    if (funding && funding.raised_usdc >= funding.goal_usdc && funding.goal_usdc > 0) {
+      const creatorId = updatedDoc.data()?.creator_id;
+      if (creatorId) {
+        await notifyInventionFunded(creatorId, inventionTitle, funding.raised_usdc);
+      }
+    }
   },
 );
