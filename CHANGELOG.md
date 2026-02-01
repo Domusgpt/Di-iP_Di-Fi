@@ -6,6 +6,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.5.0] - 2026-02-01
+
+### Added
+- Flutter SDK installed (3.29.3) with all dependencies (211 packages)
+- Dart build_runner code generation (1083 outputs: `.g.dart`, `.freezed.dart`)
+- Firebase CLI (v15.5.1) and full emulator suite (Firestore, Pub/Sub, Database, UI)
+- PostgreSQL 16 database with schema migrations applied
+- Redis server for caching layer
+- `.firebaserc` project config and `.env` with local development defaults
+- `contracts/tsconfig.json` for Hardhat TypeScript compilation
+- `docs/external-service-setup.md` — setup instructions for GCP, WalletConnect, SerpAPI
+- All lock files committed (package-lock.json, Cargo.lock) for reproducible builds
+
+### Changed
+- Vault Pub/Sub rewritten from `google-cloud-pubsub` crate to reqwest REST API
+- Crowdsale test: over-funding correctly expects revert ("Exceeds max supply")
+- Backend test mocks fixed: Firestore `db` cast as `any` for type safety
+- `social-service.ts`: removed duplicate `comment_id` in response
+
+### Fixed
+- `comment_section.dart` syntax error: `(doc) => {` changed to `(doc) {`
+- Vault Cargo.toml: removed incompatible `google-cloud-default ^0.5` dependency
+
+### Test Results
+- Smart Contracts: 48/48 passing
+- Backend (Jest): 27/27 passing
+- Brain (pytest): 17/17 passing
+- **Total: 92/92 all passing**
+
+---
+
 ## [0.4.0] - 2026-02-01
 
 ### Added
