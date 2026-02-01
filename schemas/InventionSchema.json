@@ -1,0 +1,188 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ideacapital.io/schemas/invention.json",
+  "title": "Invention",
+  "description": "The canonical schema for an Invention asset on IdeaCapital. This is the contract between The Brain (Python AI), The Vault (Rust financial backend), and The Face (Flutter UI). ALL services MUST read/write this format.",
+  "type": "object",
+  "required": ["invention_id", "status", "created_at", "social_metadata", "technical_brief"],
+  "properties": {
+    "invention_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "UUID-v4 unique identifier"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["DRAFT", "AI_PROCESSING", "REVIEW_READY", "LIVE", "FUNDING", "FUNDED", "MINTED", "LICENSING", "REVENUE"],
+      "description": "Lifecycle state of the invention"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "creator_id": {
+      "type": "string",
+      "description": "Firebase UID of the inventor"
+    },
+    "blockchain_ref": {
+      "type": "object",
+      "description": "On-chain references (populated after minting)",
+      "properties": {
+        "nft_contract_address": { "type": "string" },
+        "nft_token_id": { "type": "string" },
+        "royalty_token_address": { "type": "string" },
+        "crowdsale_address": { "type": "string" },
+        "chain_id": { "type": "integer" },
+        "ipfs_metadata_cid": { "type": "string" }
+      }
+    },
+
+    "social_metadata": {
+      "type": "object",
+      "required": ["display_title", "short_pitch"],
+      "description": "What shows up on the feed. Must be punchy.",
+      "properties": {
+        "display_title": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Catchy marketing name"
+        },
+        "short_pitch": {
+          "type": "string",
+          "maxLength": 280,
+          "description": "The 'Tweet' version of the idea"
+        },
+        "virality_tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Discovery tags e.g. ['GreenTech', 'Robotics']"
+        },
+        "media_assets": {
+          "type": "object",
+          "properties": {
+            "hero_image_url": { "type": "string", "format": "uri" },
+            "explainer_video_url": { "type": "string", "format": "uri" },
+            "thumbnail_url": { "type": "string", "format": "uri" },
+            "gallery": {
+              "type": "array",
+              "items": { "type": "string", "format": "uri" }
+            }
+          }
+        }
+      }
+    },
+
+    "technical_brief": {
+      "type": "object",
+      "description": "The AI-structured legal/technical foundation",
+      "properties": {
+        "technical_field": {
+          "type": "string",
+          "description": "e.g. 'Portable Consumer Electronics - Battery Management'"
+        },
+        "background_problem": {
+          "type": "string",
+          "description": "What sucks about the current world? The pain point."
+        },
+        "solution_summary": {
+          "type": "string",
+          "description": "How does this invention fix the problem?"
+        },
+        "core_mechanics": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["step", "description"],
+            "properties": {
+              "step": { "type": "integer" },
+              "description": { "type": "string" }
+            }
+          },
+          "description": "Step-by-step functional breakdown"
+        },
+        "novelty_claims": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "What makes this specific invention unique/patentable"
+        },
+        "hardware_requirements": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "software_logic": {
+          "type": "string",
+          "description": "Description of algorithms or logic flow"
+        }
+      }
+    },
+
+    "risk_assessment": {
+      "type": "object",
+      "description": "AI pre-vetting to save lawyers time",
+      "properties": {
+        "potential_prior_art": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "source": { "type": "string" },
+              "patent_id": { "type": "string" },
+              "similarity_score": { "type": "number", "minimum": 0, "maximum": 1 },
+              "notes": { "type": "string" }
+            }
+          }
+        },
+        "feasibility_score": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "description": "AI estimate of physics/logic viability"
+        },
+        "missing_info": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Info gaps the inventor still needs to fill"
+        }
+      }
+    },
+
+    "funding": {
+      "type": "object",
+      "description": "Crowdfunding campaign parameters",
+      "properties": {
+        "goal_usdc": { "type": "number", "minimum": 0 },
+        "raised_usdc": { "type": "number", "minimum": 0 },
+        "backer_count": { "type": "integer", "minimum": 0 },
+        "min_investment_usdc": { "type": "number", "minimum": 0 },
+        "royalty_percentage": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Total % of future revenue allocated to backers"
+        },
+        "deadline": { "type": "string", "format": "date-time" },
+        "token_supply": {
+          "type": "integer",
+          "description": "Total supply of royalty tokens for this invention"
+        }
+      }
+    },
+
+    "patent_status": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["NOT_FILED", "PROVISIONAL_FILED", "PENDING", "GRANTED", "REJECTED"]
+        },
+        "filing_date": { "type": "string", "format": "date-time" },
+        "patent_number": { "type": "string" },
+        "jurisdiction": { "type": "string" }
+      }
+    }
+  }
+}

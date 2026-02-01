@@ -1,0 +1,73 @@
+name: ideacapital
+description: "IdeaCapital - Decentralized Invention Capital Platform"
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^2.4.9
+  riverpod_annotation: ^2.3.3
+
+  # Firebase
+  firebase_core: ^2.24.2
+  firebase_auth: ^4.16.0
+  cloud_firestore: ^4.14.0
+  firebase_storage: ^11.6.0
+  firebase_messaging: ^14.7.9
+
+  # Navigation
+  go_router: ^13.1.0
+
+  # Networking
+  dio: ^5.4.0
+  web_socket_channel: ^2.4.0
+
+  # Web3 / Wallet
+  walletconnect_flutter_v2: ^2.2.0
+  web3dart: ^2.7.3
+
+  # UI Components
+  cached_network_image: ^3.3.1
+  shimmer: ^3.0.0
+  flutter_svg: ^2.0.9
+  video_player: ^2.8.2
+  image_picker: ^1.0.7
+  lottie: ^3.0.0
+
+  # Utilities
+  uuid: ^4.3.3
+  intl: ^0.19.0
+  json_annotation: ^4.8.1
+  freezed_annotation: ^2.4.1
+  equatable: ^2.0.5
+  shared_preferences: ^2.2.2
+  url_launcher: ^6.2.3
+  timeago: ^3.6.1
+
+  # Audio/Voice
+  record: ^5.0.5
+  just_audio: ^0.9.36
+
+  cupertino_icons: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+  build_runner: ^2.4.8
+  json_serializable: ^6.7.1
+  freezed: ^2.4.6
+  riverpod_generator: ^2.3.9
+  mockito: ^5.4.4
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/

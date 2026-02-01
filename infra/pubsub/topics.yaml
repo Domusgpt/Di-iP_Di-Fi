@@ -1,0 +1,55 @@
+# IdeaCapital Pub/Sub Topics
+# These are the event channels that connect all services.
+#
+# Convention: <domain>.<action>
+# Each topic has defined publishers (who writes) and subscribers (who reads).
+
+topics:
+  # ---- Invention Lifecycle ----
+  - name: invention.created
+    description: "Fired when an invention is published to the live feed"
+    publishers:
+      - "TypeScript Cloud Functions (invention-service)"
+    subscribers:
+      - "TypeScript Cloud Functions (invention-events) - feed indexing, notifications"
+
+  # ---- AI Processing ----
+  - name: ai.processing
+    description: "Request for AI to analyze/refine an invention"
+    publishers:
+      - "TypeScript Cloud Functions (invention-service)"
+    subscribers:
+      - "Python Brain (pubsub_listener) - runs AI analysis"
+
+  - name: ai.processing.complete
+    description: "AI has finished processing, structured data ready"
+    publishers:
+      - "Python Brain (pubsub_listener)"
+    subscribers:
+      - "TypeScript Cloud Functions (ai-events) - updates Firestore"
+
+  # ---- Investment Flow ----
+  - name: investment.pending
+    description: "User has submitted a blockchain investment transaction"
+    publishers:
+      - "TypeScript Cloud Functions (investment-service)"
+    subscribers:
+      - "TypeScript Cloud Functions (investment-events) - optimistic UI update"
+      - "Rust Vault (chain_watcher) - starts watching for confirmation"
+
+  - name: investment.confirmed
+    description: "Blockchain transaction confirmed, investment is real"
+    publishers:
+      - "Rust Vault (chain_watcher)"
+      - "TypeScript Cloud Functions (chain-indexer) - fallback"
+    subscribers:
+      - "TypeScript Cloud Functions (investment-events) - syncs to Firestore"
+
+  # ---- Patent Status ----
+  - name: patent.status.updated
+    description: "Patent filing status changed (filed, pending, granted, rejected)"
+    publishers:
+      - "Legal Backend (future)"
+    subscribers:
+      - "TypeScript Cloud Functions - updates Firestore"
+      - "Python Brain - may trigger follow-up analysis"

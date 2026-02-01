@@ -1,0 +1,83 @@
+# ==========================
+# IdeaCapital - Global Gitignore
+# ==========================
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# ==========================
+# Flutter (frontend/)
+# ==========================
+frontend/ideacapital/.dart_tool/
+frontend/ideacapital/.packages
+frontend/ideacapital/build/
+frontend/ideacapital/.flutter-plugins
+frontend/ideacapital/.flutter-plugins-dependencies
+frontend/ideacapital/ios/Pods/
+frontend/ideacapital/ios/.symlinks/
+frontend/ideacapital/android/.gradle/
+frontend/ideacapital/android/app/build/
+frontend/ideacapital/android/local.properties
+*.g.dart
+*.freezed.dart
+
+# ==========================
+# TypeScript Backend (backend/)
+# ==========================
+backend/functions/node_modules/
+backend/functions/lib/
+backend/functions/.tsbuildinfo
+
+# ==========================
+# Rust Vault (vault/)
+# ==========================
+vault/target/
+
+# ==========================
+# Python Brain (brain/)
+# ==========================
+brain/__pycache__/
+brain/src/__pycache__/
+brain/**/__pycache__/
+brain/.venv/
+brain/venv/
+brain/*.egg-info/
+brain/.mypy_cache/
+brain/.pytest_cache/
+
+# ==========================
+# Solidity Contracts (contracts/)
+# ==========================
+contracts/node_modules/
+contracts/cache/
+contracts/artifacts/
+contracts/typechain-types/
+contracts/coverage/
+contracts/coverage.json
+
+# ==========================
+# Docker
+# ==========================
+*.log
+docker-compose.override.yml
+
+# ==========================
+# Firebase
+# ==========================
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
