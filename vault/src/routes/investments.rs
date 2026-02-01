@@ -9,6 +9,8 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::models::investment::{Investment, InvestmentStatus, VerifyRequest};
+use crate::services::transaction_verifier;
+use crate::services::pubsub::{InvestmentConfirmedMessage, PubSubClient};
 
 pub fn router(pool: PgPool) -> Router {
     Router::new()
@@ -26,16 +28,38 @@ async fn verify_transaction(
 ) -> Result<Json<Investment>, axum::http::StatusCode> {
     tracing::info!("Verifying transaction: {}", req.tx_hash);
 
-    // TODO: Use ethers-rs to fetch transaction receipt from RPC
-    // let provider = Provider::<Http>::try_from(&rpc_url)?;
-    // let receipt = provider.get_transaction_receipt(tx_hash).await?;
-    // Verify: correct contract, correct amount, correct recipient
+    let rpc_url = std::env::var("RPC_URL")
+        .unwrap_or_else(|_| "http://127.0.0.1:8545".to_string());
+
+    // Verify the transaction on-chain
+    let verification = transaction_verifier::verify_investment_tx(
+        &rpc_url,
+        &req.tx_hash,
+        &req.wallet_address,
+        req.amount_usdc,
+    )
+    .await
+    .map_err(|e| {
+        tracing::error!("Transaction verification failed: {}", e);
+        axum::http::StatusCode::BAD_REQUEST
+    })?;
+
+    if verification.pending {
+        tracing::info!("Transaction {} still pending", req.tx_hash);
+        return Err(axum::http::StatusCode::ACCEPTED);
+    }
+
+    if !verification.confirmed {
+        tracing::warn!("Transaction {} failed on-chain", req.tx_hash);
+        return Err(axum::http::StatusCode::UNPROCESSABLE_ENTITY);
+    }
 
     // Record in PostgreSQL
     let investment = sqlx::query_as::<_, Investment>(
         r#"
-        INSERT INTO investments (id, invention_id, wallet_address, amount_usdc, tx_hash, status)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO investments (id, invention_id, wallet_address, amount_usdc, tx_hash, status, block_number, token_amount)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        ON CONFLICT (tx_hash) DO UPDATE SET status = $6, block_number = $7
         RETURNING *
         "#,
     )
@@ -45,6 +69,8 @@ async fn verify_transaction(
     .bind(&req.amount_usdc)
     .bind(&req.tx_hash)
     .bind(InvestmentStatus::Confirmed)
+    .bind(verification.block_number as i64)
+    .bind(rust_decimal::Decimal::from_f64_retain(verification.token_amount))
     .fetch_one(&pool)
     .await
     .map_err(|e| {
@@ -52,7 +78,22 @@ async fn verify_transaction(
         axum::http::StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    // TODO: Publish `investment.confirmed` to Pub/Sub
+    // Publish `investment.confirmed` to Pub/Sub
+    let project_id = std::env::var("GOOGLE_CLOUD_PROJECT").unwrap_or_default();
+    if !project_id.is_empty() {
+        let pubsub = PubSubClient::new(project_id);
+        let confirmed_msg = InvestmentConfirmedMessage {
+            investment_id: investment.id.to_string(),
+            invention_id: req.invention_id.clone(),
+            wallet_address: req.wallet_address.clone(),
+            amount_usdc: verification.amount_usdc,
+            token_amount: verification.token_amount,
+            block_number: verification.block_number,
+        };
+        if let Err(e) = pubsub.publish_investment_confirmed(confirmed_msg).await {
+            tracing::error!("Failed to publish investment.confirmed: {}", e);
+        }
+    }
 
     Ok(Json(investment))
 }

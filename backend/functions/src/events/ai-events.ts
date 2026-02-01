@@ -7,6 +7,7 @@
 import { onMessagePublished } from "firebase-functions/v2/pubsub";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
+import { notifyDraftReady } from "../services/notification-service";
 
 const db = admin.firestore();
 
@@ -32,8 +33,13 @@ export const onAiProcessingComplete = onMessagePublished(
         updated_at: admin.firestore.FieldValue.serverTimestamp(),
       });
 
-      // TODO: Send push notification to the inventor
-      // "Your campaign draft is ready for review."
+      // Send push notification to the inventor
+      const inventionDoc = await db.collection("inventions").doc(invention_id).get();
+      const creatorId = inventionDoc.data()?.creator_id;
+      const title = structured_data.social_metadata?.display_title || "Your Invention";
+      if (creatorId) {
+        await notifyDraftReady(creatorId, invention_id, title);
+      }
     } else if (action === "CHAT_RESPONSE") {
       // The Brain responded to a follow-up question
       // Store the updated fields

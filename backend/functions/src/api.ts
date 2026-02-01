@@ -10,6 +10,7 @@ import cors from "cors";
 import { inventionRoutes } from "./services/invention-service";
 import { profileRoutes } from "./services/profile-service";
 import { investmentRoutes } from "./services/investment-service";
+import { socialRoutes } from "./services/social-service";
 import { authMiddleware } from "./middleware/auth";
 
 const app = express();
@@ -26,6 +27,7 @@ app.get("/api/health", (_req, res) => {
 app.use("/api/inventions", authMiddleware, inventionRoutes);
 app.use("/api/profile", authMiddleware, profileRoutes);
 app.use("/api/investments", authMiddleware, investmentRoutes);
+app.use("/api/social", authMiddleware, socialRoutes);
 
 export const apiRouter = onRequest(
   { region: "us-central1", memory: "512MiB", timeoutSeconds: 120 },

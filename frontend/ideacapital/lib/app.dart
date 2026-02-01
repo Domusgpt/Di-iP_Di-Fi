@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'screens/feed/feed_screen.dart';
+import 'screens/feed/search_screen.dart';
+import 'screens/feed/notifications_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/invention/invention_detail_screen.dart';
 import 'screens/invention/create_invention_screen.dart';
+import 'screens/invest/invest_screen.dart';
 import 'screens/profile/profile_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -28,6 +31,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/create',
         builder: (context, state) => const CreateInventionScreen(),
+      ),
+      GoRoute(
+        path: '/search',
+        builder: (context, state) => const SearchScreen(),
+      ),
+      GoRoute(
+        path: '/notifications',
+        builder: (context, state) => const NotificationsScreen(),
+      ),
+      GoRoute(
+        path: '/invest/:id',
+        builder: (context, state) => InvestScreen(
+          inventionId: state.pathParameters['id']!,
+        ),
       ),
       GoRoute(
         path: '/profile/:uid',

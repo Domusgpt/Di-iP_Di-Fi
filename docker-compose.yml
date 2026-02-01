@@ -93,7 +93,7 @@ services:
     volumes:
       - ./backend:/app/backend
       - ./infra/firebase.json:/app/firebase.json
-      - ./infra/firestore/firestore.rules:/app/firestore.rules
+      - ./infra/firestore:/app/firestore
     environment:
       - GOOGLE_CLOUD_PROJECT=ideacapital-dev
       - VAULT_URL=http://vault:8080

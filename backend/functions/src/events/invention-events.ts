@@ -6,6 +6,7 @@
 import { onMessagePublished } from "firebase-functions/v2/pubsub";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
+import { sendNotification } from "../services/notification-service";
 
 const db = admin.firestore();
 
@@ -31,13 +32,38 @@ export const onInventionCreated = onMessagePublished(
         view_count: 0,
       });
 
-      // Update creator's invention count
+      // Update creator's invention count and reputation
       await db.collection("users").doc(creator_id).update({
         inventions_count: admin.firestore.FieldValue.increment(1),
+        reputation_score: admin.firestore.FieldValue.increment(10),
       });
 
-      // TODO: Send push notification to creator's followers
-      // TODO: Update reputation score for creator
+      // Send push notification to creator's followers
+      const inventionDoc = await db.collection("inventions").doc(invention_id).get();
+      const inventionTitle = inventionDoc.data()?.social_metadata?.display_title || "a new invention";
+      const creatorDoc = await db.collection("users").doc(creator_id).get();
+      const creatorName = creatorDoc.data()?.display_name || "Someone";
+
+      const followersSnapshot = await db
+        .collection("followers")
+        .doc(creator_id)
+        .collection("user_followers")
+        .limit(500)
+        .get();
+
+      if (!followersSnapshot.empty) {
+        const notifications = followersSnapshot.docs.map((followerDoc) =>
+          sendNotification({
+            userId: followerDoc.id,
+            title: `${creatorName} posted a new invention`,
+            body: inventionTitle,
+            type: "new_invention",
+            data: { invention_id },
+          })
+        );
+        await Promise.allSettled(notifications);
+        logger.info(`Notified ${followersSnapshot.size} followers of ${creator_id}`);
+      }
     }
   },
 );
