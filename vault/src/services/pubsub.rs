@@ -1,9 +1,11 @@
 //! Pub/Sub Client for the Vault
 //!
 //! Handles subscribing to `investment.pending` and publishing `investment.confirmed`.
-//! This is the async bridge between the TypeScript social layer and the Rust financial layer.
+//! Uses the Google Cloud Pub/Sub REST API via reqwest.
+//! Falls back gracefully to local/stub mode when no GCP credentials are available.
 
 use anyhow::Result;
+use base64::Engine;
 use serde::{Deserialize, Serialize};
 use tracing;
 
@@ -28,18 +30,77 @@ pub struct InvestmentConfirmedMessage {
     pub block_number: u64,
 }
 
-/// Pub/Sub client wrapper for Google Cloud Pub/Sub.
+/// REST-based message format for Pub/Sub pull response.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PullResponse {
+    #[serde(default)]
+    received_messages: Vec<PulledMessage>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PulledMessage {
+    ack_id: String,
+    message: PubSubMessageBody,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PubSubMessageBody {
+    #[serde(default)]
+    data: String, // base64-encoded
+    #[serde(default)]
+    message_id: String,
+}
+
+/// Pub/Sub client wrapper using REST API.
 pub struct PubSubClient {
     project_id: String,
+    http: reqwest::Client,
 }
 
 impl PubSubClient {
     pub fn new(project_id: String) -> Self {
-        Self { project_id }
+        Self {
+            project_id,
+            http: reqwest::Client::new(),
+        }
     }
 
-    /// Subscribe to the `investment.pending` topic and process messages.
-    /// Each confirmed transaction triggers verification and publishing to `investment.confirmed`.
+    fn has_credentials() -> bool {
+        std::env::var("GOOGLE_APPLICATION_CREDENTIALS").is_ok()
+            || std::env::var("GOOGLE_CLOUD_PROJECT").is_ok()
+    }
+
+    /// Get an access token from the GCE metadata server.
+    async fn get_access_token(&self) -> Result<String> {
+        // Try GCE metadata server (works on Cloud Run, GKE, etc.)
+        let resp = self
+            .http
+            .get("http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token")
+            .header("Metadata-Flavor", "Google")
+            .timeout(std::time::Duration::from_secs(2))
+            .send()
+            .await;
+
+        if let Ok(resp) = resp {
+            if resp.status().is_success() {
+                #[derive(Deserialize)]
+                struct TokenResponse {
+                    access_token: String,
+                }
+                let token: TokenResponse = resp.json().await?;
+                return Ok(token.access_token);
+            }
+        }
+
+        Err(anyhow::anyhow!(
+            "No access token available. Use GCE metadata or set GOOGLE_APPLICATION_CREDENTIALS."
+        ))
+    }
+
+    /// Subscribe to the `investment.pending` topic and process messages via polling.
     pub async fn start_investment_listener(
         &self,
         pool: sqlx::PgPool,
@@ -50,71 +111,130 @@ impl PubSubClient {
             self.project_id
         );
 
-        let has_credentials = std::env::var("GOOGLE_APPLICATION_CREDENTIALS").is_ok()
-            || std::env::var("GOOGLE_CLOUD_PROJECT").is_ok();
-
-        if !has_credentials {
-            tracing::warn!("No GCP credentials detected — Pub/Sub listener running in local mode");
+        if !Self::has_credentials() {
+            tracing::warn!("No GCP credentials — Pub/Sub listener in local/stub mode");
             tracing::info!("Set GOOGLE_APPLICATION_CREDENTIALS to enable production Pub/Sub");
             return Ok(());
         }
 
-        let client = google_cloud_pubsub::client::Client::default().await
-            .map_err(|e| anyhow::anyhow!("Failed to create Pub/Sub client: {}", e))?;
+        let subscription = format!(
+            "projects/{}/subscriptions/investment-pending-vault-sub",
+            self.project_id
+        );
+        let pull_url = format!(
+            "https://pubsub.googleapis.com/v1/{}:pull",
+            subscription
+        );
 
-        let subscription = client.subscription("investment-pending-vault-sub");
+        tracing::info!("Pub/Sub listener polling: {}", subscription);
 
-        tracing::info!("Pub/Sub listener active on subscription: investment-pending-vault-sub");
+        loop {
+            match self.pull_and_process(&pull_url, &pool, &rpc_url).await {
+                Ok(count) => {
+                    if count == 0 {
+                        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                    }
+                }
+                Err(e) => {
+                    tracing::error!("Pub/Sub pull error: {}. Retrying in 10s...", e);
+                    tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+                }
+            }
+        }
+    }
 
-        let pool_clone = pool.clone();
-        let rpc_clone = rpc_url.clone();
-        let project_id = self.project_id.clone();
+    /// Pull messages from the subscription and process them.
+    async fn pull_and_process(
+        &self,
+        pull_url: &str,
+        pool: &sqlx::PgPool,
+        rpc_url: &str,
+    ) -> Result<usize> {
+        let token = self.get_access_token().await?;
 
-        subscription
-            .receive(move |message, _cancel| {
-                let pool = pool_clone.clone();
-                let rpc = rpc_clone.clone();
-                let proj = project_id.clone();
+        let resp = self
+            .http
+            .post(pull_url)
+            .bearer_auth(&token)
+            .json(&serde_json::json!({
+                "maxMessages": 10
+            }))
+            .send()
+            .await?;
 
-                async move {
-                    match serde_json::from_slice::<InvestmentPendingMessage>(&message.message.data)
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            return Err(anyhow::anyhow!("Pull failed ({}): {}", status, body));
+        }
+
+        let pull_response: PullResponse = resp.json().await?;
+        let count = pull_response.received_messages.len();
+
+        if count == 0 {
+            return Ok(0);
+        }
+
+        let mut ack_ids = Vec::new();
+        let b64 = base64::engine::general_purpose::STANDARD;
+
+        for msg in &pull_response.received_messages {
+            let decoded = b64.decode(&msg.message.data).unwrap_or_default();
+
+            match serde_json::from_slice::<InvestmentPendingMessage>(&decoded) {
+                Ok(pending) => {
+                    tracing::info!(
+                        "Received pending investment: {} (tx: {})",
+                        pending.investment_id,
+                        pending.tx_hash
+                    );
+
+                    match process_pending_investment(&pending, pool, rpc_url, &self.project_id)
+                        .await
                     {
-                        Ok(pending) => {
-                            tracing::info!(
-                                "Received pending investment: {} (tx: {})",
-                                pending.investment_id,
-                                pending.tx_hash
-                            );
-
-                            match process_pending_investment(&pending, &pool, &rpc, &proj).await {
-                                Ok(_) => {
-                                    tracing::info!(
-                                        "Processed investment: {}",
-                                        pending.investment_id
-                                    );
-                                    let _ = message.ack().await;
-                                }
-                                Err(e) => {
-                                    tracing::error!(
-                                        "Failed to process investment {}: {}",
-                                        pending.investment_id,
-                                        e
-                                    );
-                                    let _ = message.nack().await;
-                                }
-                            }
+                        Ok(_) => {
+                            tracing::info!("Processed investment: {}", pending.investment_id);
+                            ack_ids.push(msg.ack_id.clone());
                         }
                         Err(e) => {
-                            tracing::error!("Failed to deserialize pending message: {}", e);
-                            let _ = message.ack().await; // Ack to avoid poison pill
+                            tracing::error!(
+                                "Failed to process investment {}: {}",
+                                pending.investment_id,
+                                e
+                            );
                         }
                     }
                 }
-            })
-            .await
-            .map_err(|e| anyhow::anyhow!("Pub/Sub receive error: {}", e))?;
+                Err(e) => {
+                    tracing::error!("Failed to deserialize message: {}", e);
+                    ack_ids.push(msg.ack_id.clone()); // Ack to avoid poison pill
+                }
+            }
+        }
 
-        Ok(())
+        // Acknowledge processed messages
+        if !ack_ids.is_empty() {
+            let subscription = format!(
+                "projects/{}/subscriptions/investment-pending-vault-sub",
+                self.project_id
+            );
+            let ack_url = format!(
+                "https://pubsub.googleapis.com/v1/{}:acknowledge",
+                subscription
+            );
+
+            let _ = self
+                .http
+                .post(&ack_url)
+                .bearer_auth(&token)
+                .json(&serde_json::json!({
+                    "ackIds": ack_ids
+                }))
+                .send()
+                .await;
+        }
+
+        Ok(count)
     }
 
     /// Publish a confirmed investment message to Pub/Sub.
@@ -128,10 +248,7 @@ impl PubSubClient {
             message.amount_usdc
         );
 
-        let has_credentials = std::env::var("GOOGLE_APPLICATION_CREDENTIALS").is_ok()
-            || std::env::var("GOOGLE_CLOUD_PROJECT").is_ok();
-
-        if !has_credentials {
+        if !Self::has_credentials() {
             tracing::info!(
                 "Local mode — would publish confirmation for investment {}",
                 message.investment_id
@@ -139,35 +256,39 @@ impl PubSubClient {
             return Ok(());
         }
 
-        let client = google_cloud_pubsub::client::Client::default().await
-            .map_err(|e| anyhow::anyhow!("Failed to create Pub/Sub client: {}", e))?;
-
-        let topic = client.topic("investment.confirmed");
-        let publisher = topic.new_publisher(None);
+        let token = self.get_access_token().await?;
+        let topic = format!(
+            "projects/{}/topics/investment.confirmed",
+            self.project_id
+        );
+        let publish_url = format!("https://pubsub.googleapis.com/v1/{}:publish", topic);
 
         let data = serde_json::to_vec(&message)?;
-        let pubsub_msg = google_cloud_pubsub::subscriber::ReceivedMessage {
-            ..Default::default()
-        };
+        let b64 = base64::engine::general_purpose::STANDARD;
+        let encoded = b64.encode(&data);
 
-        // Use the raw publish API
-        use google_cloud_pubsub::publisher::PublishConfig;
-        let msg = google_cloud_pubsub::client::google::pubsub::v1::PubsubMessage {
-            data,
-            ..Default::default()
-        };
+        let resp = self
+            .http
+            .post(&publish_url)
+            .bearer_auth(&token)
+            .json(&serde_json::json!({
+                "messages": [{
+                    "data": encoded
+                }]
+            }))
+            .send()
+            .await?;
 
-        let awaiter = publisher.publish(msg).await;
-        let message_id = awaiter.get().await
-            .map_err(|e| anyhow::anyhow!("Failed to publish message: {:?}", e))?;
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            return Err(anyhow::anyhow!("Publish failed ({}): {}", status, body));
+        }
 
         tracing::info!(
-            "Published confirmation for investment {} (msg_id: {})",
-            message.investment_id,
-            message_id
+            "Published confirmation for investment {}",
+            message.investment_id
         );
-
-        publisher.shutdown().await;
 
         Ok(())
     }
@@ -200,11 +321,10 @@ async fn process_pending_investment(
 
     if !verification.confirmed {
         tracing::warn!("Transaction {} failed verification", pending.tx_hash);
-        // Record failure in DB
         sqlx::query(
             "INSERT INTO investments (investment_id, invention_id, tx_hash, wallet_address, amount_usdc, status, verified_at)
              VALUES ($1, $2, $3, $4, $5, 'FAILED', NOW())
-             ON CONFLICT (tx_hash) DO UPDATE SET status = 'FAILED', verified_at = NOW()"
+             ON CONFLICT (tx_hash) DO UPDATE SET status = 'FAILED', verified_at = NOW()",
         )
         .bind(&pending.investment_id)
         .bind(&pending.invention_id)
@@ -221,7 +341,7 @@ async fn process_pending_investment(
     sqlx::query(
         "INSERT INTO investments (investment_id, invention_id, tx_hash, wallet_address, amount_usdc, token_amount, block_number, status, verified_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, 'CONFIRMED', NOW())
-         ON CONFLICT (tx_hash) DO UPDATE SET status = 'CONFIRMED', token_amount = $6, block_number = $7, verified_at = NOW()"
+         ON CONFLICT (tx_hash) DO UPDATE SET status = 'CONFIRMED', token_amount = $6, block_number = $7, verified_at = NOW()",
     )
     .bind(&pending.investment_id)
     .bind(&pending.invention_id)

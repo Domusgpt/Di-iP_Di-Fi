@@ -41,7 +41,7 @@ jest.mock("uuid", () => ({
 import * as admin from "firebase-admin";
 
 describe("Investment Service", () => {
-  const db = admin.firestore();
+  const db = admin.firestore() as any;
 
   beforeEach(() => {
     jest.clearAllMocks();

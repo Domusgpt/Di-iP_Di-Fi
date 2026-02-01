@@ -22,9 +22,9 @@ alloy = { version = "0.1", features = ["full"] }
 # Database
 sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "rust_decimal"] }
 
-# Google Cloud
-google-cloud-pubsub = "0.24"
-google-cloud-default = { version = "0.5", features = ["pubsub"] }
+# Google Cloud (REST API via reqwest)
+reqwest = { version = "0.12", features = ["json"] }
+base64 = "0.22"
 
 # Crypto
 sha2 = "0.10"

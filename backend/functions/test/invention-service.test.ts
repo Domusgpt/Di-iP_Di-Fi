@@ -40,7 +40,7 @@ jest.mock("uuid", () => ({
 import * as admin from "firebase-admin";
 
 describe("Invention Service", () => {
-  const db = admin.firestore();
+  const db = admin.firestore() as any;
 
   beforeEach(() => {
     jest.clearAllMocks();
