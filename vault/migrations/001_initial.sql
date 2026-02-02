@@ -9,6 +9,7 @@ CREATE TYPE investment_status AS ENUM ('pending', 'confirmed', 'failed');
 -- Investments table: records all investment transactions
 CREATE TABLE investments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    investment_id TEXT NOT NULL, -- External ID from TS backend
     invention_id TEXT NOT NULL,
     wallet_address TEXT NOT NULL,
     amount_usdc NUMERIC(18, 6) NOT NULL,
@@ -17,7 +18,7 @@ CREATE TABLE investments (
     block_number BIGINT,
     token_amount NUMERIC(18, 6),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    confirmed_at TIMESTAMPTZ
+    verified_at TIMESTAMPTZ -- Matches code expectations
 );
 
 CREATE INDEX idx_investments_invention ON investments(invention_id);

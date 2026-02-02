@@ -53,6 +53,20 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("Database connected");
 
+    // Start background services
+    let pool_clone = pool.clone();
+    let rpc_url = std::env::var("RPC_URL")
+        .unwrap_or_else(|_| "http://127.0.0.1:8545".to_string());
+    let project_id = std::env::var("GOOGLE_CLOUD_PROJECT")
+        .unwrap_or_else(|_| "ideacapital-dev".to_string());
+
+    tokio::spawn(async move {
+        let pubsub = services::pubsub::PubSubClient::new(project_id);
+        if let Err(e) = pubsub.start_investment_listener(pool_clone, rpc_url).await {
+            tracing::error!("Pub/Sub listener died: {}", e);
+        }
+    });
+
     // Build the app
     let app = Router::new()
         .route("/health", get(health_check))
