@@ -2989,6 +2989,7 @@ dependencies = [
  "sha2",
  "sqlx",
  "thiserror 1.0.69",
+ "tiny-keccak",
  "tokio",
  "tokio-test",
  "tower 0.4.13",
