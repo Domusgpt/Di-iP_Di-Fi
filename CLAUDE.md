@@ -156,7 +156,8 @@ docker compose up -d
 
 IdeaCapital integrates the Vib3+ 4D visualization SDK for procedural shader backgrounds.
 
-- **Source:** `https://github.com/Domusgpt/Vib3-CORE-Documented01-` (branch: `claude/phase-5-hardening-a4Wzn`)
+- **Package:** `@vib3code/sdk@2.0.1` (npm)
+- **Source:** `https://github.com/Domusgpt/vib34d-xr-quaternion-sdk`
 - **Web rendering:** WebGL2 via `HtmlElementView` + `vib3-loader.js`
 - **Native fallback:** Gradient placeholder on iOS/Android
 - **Widgets:** `Vib3Background` (full-area shader), `Vib3Card` (per-invention procedural visual)
