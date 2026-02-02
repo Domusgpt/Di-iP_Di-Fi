@@ -12,6 +12,7 @@ use ethers::abi::Token;
 use ethers::types::{Address, U256};
 use std::str::FromStr;
 use hex;
+use anyhow::{Result, anyhow};
 
 /// A leaf node in the Merkle tree representing a single claim.
 #[derive(Debug, Clone)]
@@ -21,16 +22,16 @@ pub struct ClaimLeaf {
 }
 
 /// Build a Merkle tree from a list of claims and return (root, proofs).
-pub fn build_merkle_tree(claims: &[ClaimLeaf]) -> (String, Vec<Vec<String>>) {
+pub fn build_merkle_tree(claims: &[ClaimLeaf]) -> Result<(String, Vec<Vec<String>>)> {
     if claims.is_empty() {
-        return (String::new(), vec![]);
+        return Ok((String::new(), vec![]));
     }
 
     // Generate leaf hashes
-    let mut leaves: Vec<[u8; 32]> = claims
-        .iter()
-        .map(|claim| hash_leaf(&claim.wallet_address, &claim.amount_wei))
-        .collect();
+    let mut leaves = Vec::with_capacity(claims.len());
+    for claim in claims {
+        leaves.push(hash_leaf(&claim.wallet_address, &claim.amount_wei)?);
+    }
 
     // Pad to power of 2
     let target_len = leaves.len().next_power_of_two();
@@ -72,13 +73,16 @@ pub fn build_merkle_tree(claims: &[ClaimLeaf]) -> (String, Vec<Vec<String>>) {
         proofs.push(proof);
     }
 
-    (root, proofs)
+    Ok((root, proofs))
 }
 
-fn hash_leaf(address: &str, amount_wei: &str) -> [u8; 32] {
+fn hash_leaf(address: &str, amount_wei: &str) -> Result<[u8; 32]> {
     // 1. Parse inputs
-    let addr = Address::from_str(address).expect("Invalid address format");
-    let amt = U256::from_dec_str(amount_wei).expect("Invalid amount format");
+    let addr = Address::from_str(address)
+        .map_err(|e| anyhow!("Invalid address format '{}': {}", address, e))?;
+
+    let amt = U256::from_dec_str(amount_wei)
+        .map_err(|e| anyhow!("Invalid amount format '{}': {}", amount_wei, e))?;
 
     // 2. ABI Encode: abi.encode(address, amount)
     // This adds proper 32-byte padding to both arguments
@@ -97,7 +101,7 @@ fn hash_leaf(address: &str, amount_wei: &str) -> [u8; 32] {
     outer_hasher.update(&inner_hash);
     outer_hasher.finalize(&mut outer_hash);
 
-    outer_hash
+    Ok(outer_hash)
 }
 
 fn hash_pair(left: &[u8; 32], right: &[u8; 32]) -> [u8; 32] {
@@ -129,7 +133,7 @@ mod tests {
             amount_wei: "1000000".to_string(),
         }];
 
-        let (root, proofs) = build_merkle_tree(&claims);
+        let (root, proofs) = build_merkle_tree(&claims).expect("Failed to build merkle tree");
         assert!(!root.is_empty());
         assert_eq!(proofs.len(), 1);
     }
@@ -151,7 +155,7 @@ mod tests {
             },
         ];
 
-        let (root, proofs) = build_merkle_tree(&claims);
+        let (root, proofs) = build_merkle_tree(&claims).expect("Failed to build merkle tree");
         assert!(!root.is_empty());
         assert_eq!(proofs.len(), 3);
         // Each proof should have log2(4) = 2 elements (padded to 4 leaves)
@@ -160,7 +164,7 @@ mod tests {
 
     #[test]
     fn test_empty_claims() {
-        let (root, proofs) = build_merkle_tree(&[]);
+        let (root, proofs) = build_merkle_tree(&[]).expect("Failed to build merkle tree");
         assert!(root.is_empty());
         assert!(proofs.is_empty());
     }
@@ -180,7 +184,7 @@ mod tests {
             }
         ];
 
-        let (root, proofs) = build_merkle_tree(&claims);
+        let (root, proofs) = build_merkle_tree(&claims).expect("Failed to build merkle tree");
 
         // Assert Root
         assert_eq!(root, "0x8140f9815bda3adf6750884e0c94c193c9be3e5891d90d97d4e73934124ec5b1");
@@ -188,5 +192,16 @@ mod tests {
         // Assert Proofs
         assert_eq!(proofs[0][0], "0x08d32c0b719aa7d191069df3aa4963442b48ab22b642e50b485c5be6e0450df5");
         assert_eq!(proofs[1][0], "0x68ac16a2532f97e96240f8ecf32dd7c2c94330f78c43d505288b9a7dace30882");
+    }
+
+    #[test]
+    fn test_invalid_address_returns_error() {
+        let claims = vec![ClaimLeaf {
+            wallet_address: "invalid_address".to_string(),
+            amount_wei: "100".to_string(),
+        }];
+
+        let result = build_merkle_tree(&claims);
+        assert!(result.is_err());
     }
 }

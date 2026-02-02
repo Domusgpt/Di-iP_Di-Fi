@@ -84,7 +84,10 @@ async fn distribute_dividends(
         .collect();
 
     // 3. Build Merkle tree
-    let (merkle_root, proofs) = build_merkle_tree(&merkle_leaves);
+    let (merkle_root, proofs) = build_merkle_tree(&merkle_leaves).map_err(|e| {
+        tracing::error!("Failed to build merkle tree: {}", e);
+        axum::http::StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     let distribution_id = Uuid::new_v4();
 

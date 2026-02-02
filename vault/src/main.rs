@@ -60,12 +60,36 @@ async fn main() -> anyhow::Result<()> {
     let project_id = std::env::var("GOOGLE_CLOUD_PROJECT")
         .unwrap_or_else(|_| "ideacapital-dev".to_string());
 
+    let rpc_url_listener = rpc_url.clone();
+    let project_id_listener = project_id.clone();
     tokio::spawn(async move {
-        let pubsub = services::pubsub::PubSubClient::new(project_id);
-        if let Err(e) = pubsub.start_investment_listener(pool_clone, rpc_url).await {
+        let pubsub = services::pubsub::PubSubClient::new(project_id_listener);
+        if let Err(e) = pubsub.start_investment_listener(pool_clone, rpc_url_listener).await {
             tracing::error!("Pub/Sub listener died: {}", e);
         }
     });
+
+    // Start Chain Watcher (Redundancy)
+    let pool_watcher = pool.clone();
+    let rpc_url_watcher = rpc_url.clone();
+    let project_id_watcher = project_id.clone();
+    let crowdsale_address = std::env::var("CROWDSALE_ADDRESS")
+        .unwrap_or_else(|_| "0x0000000000000000000000000000000000000000".to_string());
+
+    if crowdsale_address != "0x0000000000000000000000000000000000000000" {
+        tokio::spawn(async move {
+            if let Err(e) = services::chain_watcher::watch_crowdsale_events(
+                &rpc_url_watcher,
+                &crowdsale_address,
+                pool_watcher,
+                &project_id_watcher
+            ).await {
+                tracing::error!("Chain watcher died: {}", e);
+            }
+        });
+    } else {
+        tracing::warn!("CROWDSALE_ADDRESS not set - Chain Watcher disabled");
+    }
 
     // Build the app
     let app = Router::new()
