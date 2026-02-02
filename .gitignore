@@ -2,6 +2,10 @@
 # IdeaCapital - Global Gitignore
 # ==========================
 
+# Root node_modules (SDK installs)
+node_modules/
+package-lock.json
+
 # OS
 .DS_Store
 Thumbs.db

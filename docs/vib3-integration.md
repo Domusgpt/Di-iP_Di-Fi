@@ -1,6 +1,9 @@
-# Vib3+ Shader SDK Integration
+# Vib3+ SDK Integration
 
-IdeaCapital integrates the [Vib3+ SDK](https://github.com/Domusgpt/Vib3-CORE-Documented01-) to provide procedural 4D shader visualizations throughout the platform UI. This document covers the integration architecture, available widgets, and customization options.
+IdeaCapital integrates the [@vib3code/sdk](https://www.npmjs.com/package/@vib3code/sdk) (v2.0.1) to provide procedural 4D shader visualizations throughout the platform UI. This document covers the integration architecture, available widgets, and customization options.
+
+**SDK Package:** `@vib3code/sdk@2.0.1`
+**Source:** [github.com/Domusgpt/vib34d-xr-quaternion-sdk](https://github.com/Domusgpt/vib34d-xr-quaternion-sdk)
 
 ---
 
