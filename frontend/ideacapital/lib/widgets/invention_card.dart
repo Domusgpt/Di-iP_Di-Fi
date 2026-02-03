@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/invention.dart';
+import 'vib3_watermark.dart';
 
 class InventionCard extends StatelessWidget {
   final Invention invention;
@@ -26,37 +27,52 @@ class InventionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Hero image
-            if (social.mediaAssets?.heroImageUrl != null)
-              AspectRatio(
-                aspectRatio: 16 / 9,
-                child: CachedNetworkImage(
-                  imageUrl: social.mediaAssets!.heroImageUrl!,
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    child: const Center(child: CircularProgressIndicator()),
-                  ),
-                  errorWidget: (context, url, error) => Container(
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    child: const Icon(Icons.image_not_supported, size: 48),
-                  ),
-                ),
-              )
-            else
-              AspectRatio(
-                aspectRatio: 16 / 9,
-                child: Container(
-                  color: theme.colorScheme.primaryContainer,
-                  child: Center(
-                    child: Icon(
-                      Icons.lightbulb,
-                      size: 64,
-                      color: theme.colorScheme.onPrimaryContainer,
+            // Hero image with Watermark Overlay
+            Stack(
+              children: [
+                if (social.mediaAssets?.heroImageUrl != null)
+                  AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: CachedNetworkImage(
+                      imageUrl: social.mediaAssets!.heroImageUrl!,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        child: const Center(child: CircularProgressIndicator()),
+                      ),
+                      errorWidget: (context, url, error) => Container(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        child: const Icon(Icons.image_not_supported, size: 48),
+                      ),
+                    ),
+                  )
+                else
+                  AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: Container(
+                      color: theme.colorScheme.primaryContainer,
+                      child: Center(
+                        child: Icon(
+                          Icons.lightbulb,
+                          size: 64,
+                          color: theme.colorScheme.onPrimaryContainer,
+                        ),
+                      ),
                     ),
                   ),
+
+                // Vib3 Watermark - The Unique Digital Seal
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Vib3Watermark(
+                    seed: invention.inventionId,
+                    size: 48,
+                    opacity: 0.9,
+                  ),
                 ),
-              ),
+              ],
+            ),
 
             Padding(
               padding: const EdgeInsets.all(16),
