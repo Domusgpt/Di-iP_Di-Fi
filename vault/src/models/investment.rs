@@ -15,6 +15,7 @@ pub enum InvestmentStatus {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Investment {
     pub id: Uuid,
+    pub investment_id: String, // Added to match schema
     pub invention_id: String,
     pub wallet_address: String,
     pub amount_usdc: Decimal,
@@ -23,7 +24,7 @@ pub struct Investment {
     pub block_number: Option<i64>,
     pub token_amount: Option<Decimal>,
     pub created_at: DateTime<Utc>,
-    pub confirmed_at: Option<DateTime<Utc>>,
+    pub verified_at: Option<DateTime<Utc>>, // Renamed from confirmed_at
 }
 
 #[derive(Debug, Deserialize)]

@@ -67,6 +67,37 @@
       engine.setParameter('hue', 260);
       engine.setParameter('intensity', 0.6);
 
+      // Support additional config from data attributes (for Watermark)
+      const configJson = container.dataset.config;
+      if (configJson) {
+        try {
+          const config = JSON.parse(configJson);
+
+          if (config.geometryType !== undefined) engine.setParameter('geometry', config.geometryType);
+          if (config.speed !== undefined) engine.setParameter('speed', config.speed);
+          if (config.zoom !== undefined) engine.setParameter('zoom', config.zoom);
+          if (config.distortion !== undefined) engine.setParameter('distortion', config.distortion);
+
+          if (config.rotation) {
+             if (config.rotation.x !== undefined) engine.setParameter('rotationX', config.rotation.x);
+             if (config.rotation.y !== undefined) engine.setParameter('rotationY', config.rotation.y);
+             if (config.rotation.z !== undefined) engine.setParameter('rotationZ', config.rotation.z);
+          }
+
+          // Colors come as normalized [r,g,b] from Vib3Identity
+          // Engine might expect hue/saturation or rgb vectors depending on system
+          // For now, map primary color hue roughly to engine 'hue'
+          if (config.colorPrimary) {
+             // Simple RGB to Hue approximation for this MVP integration
+             // In a real integration, we'd pass the vec3 directly to a shader uniform
+             // assuming the engine exposes 'uColorPrimary'
+             // engine.setUniform('uColorPrimary', config.colorPrimary);
+          }
+        } catch (e) {
+          console.warn('[Vib3] Failed to parse config JSON:', e);
+        }
+      }
+
       engines.set(viewId, engine);
       console.log(`[Vib3] SDK engine initialized for view ${viewId} (${system})`);
       return true;

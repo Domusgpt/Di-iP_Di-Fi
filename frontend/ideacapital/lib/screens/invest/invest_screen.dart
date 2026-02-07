@@ -104,15 +104,30 @@ class _InvestScreenState extends ConsumerState<InvestScreen> {
                 color: theme.colorScheme.primaryContainer,
                 child: Padding(
                   padding: const EdgeInsets.all(16),
-                  child: Column(
+                  child: Row(
                     children: [
                       const Icon(Icons.check_circle, size: 48),
-                      const SizedBox(height: 8),
-                      const Text('Transaction Submitted!'),
-                      const SizedBox(height: 4),
-                      Text(
-                        'TX: ${_txHash!.substring(0, 10)}...',
-                        style: theme.textTheme.bodySmall,
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Transaction Submitted!',
+                              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'The Vault is confirming your investment on-chain.',
+                              style: theme.textTheme.bodySmall,
+                            ),
+                            const SizedBox(height: 8),
+                            SelectableText(
+                              'TX: ${_txHash!.substring(0, 10)}...',
+                              style: theme.textTheme.labelSmall,
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
