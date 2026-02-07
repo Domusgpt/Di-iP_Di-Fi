@@ -58,22 +58,59 @@ async fn distribute_dividends(
         holders.len()
     );
 
+    // 0. ABS Compliance: Fetch fee splits
+    // Check if there are any mandated fee splits (Lawyer, Platform, etc.)
+    #[derive(sqlx::FromRow)]
+    struct FeeSplit {
+        recipient_type: String,
+        recipient_address: String,
+        percentage: rust_decimal::Decimal,
+    }
+
+    let fee_splits = sqlx::query_as::<_, FeeSplit>(
+        "SELECT recipient_type, recipient_address, percentage FROM compliance_fee_splits WHERE invention_id = $1"
+    )
+    .bind(&invention_id)
+    .fetch_all(&pool)
+    .await
+    .unwrap_or_default(); // Default to empty if query fails or no splits
+
+    let mut net_revenue = revenue_usdc;
+    let mut claims_data: Vec<(String, f64, String)> = Vec::new();
+
+    // Calculate and deduct fees
+    for split in fee_splits {
+        use rust_decimal::prelude::ToPrimitive;
+        let pct = split.percentage.to_f64().unwrap_or(0.0);
+        if pct > 0.0 {
+            let fee_amount = revenue_usdc * (pct / 100.0);
+            net_revenue -= fee_amount;
+
+            let amount_wei = format!("{}", (fee_amount * 1_000_000.0) as u64);
+            tracing::info!("ABS Fee Split: {} to {} ({:?}%)", fee_amount, split.recipient_address, pct);
+
+            claims_data.push((split.recipient_address, fee_amount, amount_wei));
+        }
+    }
+
     // 1. Calculate total token supply from holder balances
     let total_supply: f64 = holders.iter().map(|h| h.token_balance).sum();
     if total_supply <= 0.0 {
         return Err(axum::http::StatusCode::BAD_REQUEST);
     }
 
-    // 2. Calculate each holder's share and build Merkle tree leaves
-    let claims_data: Vec<(String, f64, String)> = holders
+    // 2. Calculate each holder's share of NET revenue and build Merkle tree leaves
+    let holder_claims: Vec<(String, f64, String)> = holders
         .iter()
         .map(|h| {
-            let share = (h.token_balance / total_supply) * revenue_usdc;
+            let share = (h.token_balance / total_supply) * net_revenue;
             // Convert USDC to wei-like representation (6 decimals for USDC)
             let amount_wei = format!("{}", (share * 1_000_000.0) as u64);
             (h.wallet_address.clone(), share, amount_wei)
         })
         .collect();
+
+    claims_data.extend(holder_claims);
 
     let merkle_leaves: Vec<ClaimLeaf> = claims_data
         .iter()

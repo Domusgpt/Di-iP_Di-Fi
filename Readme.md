@@ -92,6 +92,23 @@ IdeaCapital uses an **Event-Driven Architecture** with blockchain as **Source of
 
 ---
 
+## Key Features
+
+### 🎨 Vib3 Identity
+Every invention gets a unique, procedurally generated 4D visual identity ("Digital Seal") derived from its blockchain ID.
+- **Web:** Rendered via `@vib3code/sdk` (WebGL/Raymarching).
+- **Mobile:** Rendered via performant Flutter `CustomPainter`.
+
+### ⚖️ Arizona ABS Compliance
+Support for Alternative Business Structures (ABS) allowing fee sharing between lawyers and DAO members.
+- **Schema:** Fee splits are tracked in `compliance_fee_splits`.
+- **Logic:** The Vault automatically deducts legal/platform fees before distributing dividends.
+
+### ⚡ Reactive Indexing
+Zero-latency UI updates. The backend listens to blockchain events via Pub/Sub and updates the Firestore cache immediately upon confirmation.
+
+---
+
 ## Quick Start
 
 ### Prerequisites
