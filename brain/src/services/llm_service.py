@@ -80,6 +80,11 @@ class LLMService:
     def _get_model(self):
         """Lazy-load the Vertex AI model."""
         if self._model is None:
+            # Check for credentials before attempting to load
+            if not os.getenv("GOOGLE_APPLICATION_CREDENTIALS") and not os.getenv("GOOGLE_CLOUD_PROJECT"):
+                logger.info("No Google credentials found, defaulting to mock mode.")
+                return None
+
             try:
                 from langchain_google_vertexai import ChatVertexAI
 
@@ -90,8 +95,12 @@ class LLMService:
                     temperature=0.3,
                     max_output_tokens=4096,
                 )
+                logger.info("Vertex AI model initialized successfully.")
+            except ImportError:
+                logger.warning("langchain_google_vertexai not installed, using mock.")
+                self._model = None
             except Exception as e:
-                logger.warning(f"Vertex AI not available, using mock: {e}")
+                logger.warning(f"Vertex AI initialization failed, using mock: {e}")
                 self._model = None
         return self._model
 
