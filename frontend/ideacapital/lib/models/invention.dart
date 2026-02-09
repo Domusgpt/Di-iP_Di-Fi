@@ -134,6 +134,8 @@ class CoreMechanic {
 
 @JsonSerializable(explicitToJson: true)
 class RiskAssessment {
+  @JsonKey(name: 'novelty_proof')
+  final NoveltyProof? noveltyProof;
   @JsonKey(name: 'potential_prior_art')
   final List<PriorArt>? potentialPriorArt;
   @JsonKey(name: 'feasibility_score')
@@ -142,6 +144,7 @@ class RiskAssessment {
   final List<String>? missingInfo;
 
   RiskAssessment({
+    this.noveltyProof,
     this.potentialPriorArt,
     this.feasibilityScore,
     this.missingInfo,
@@ -166,6 +169,18 @@ class PriorArt {
   factory PriorArt.fromJson(Map<String, dynamic> json) =>
       _$PriorArtFromJson(json);
   Map<String, dynamic> toJson() => _$PriorArtToJson(this);
+}
+
+@JsonSerializable()
+class NoveltyProof {
+  final Map<String, dynamic>? proof;
+  final List<String>? publicSignals;
+
+  NoveltyProof({this.proof, this.publicSignals});
+
+  factory NoveltyProof.fromJson(Map<String, dynamic> json) =>
+      _$NoveltyProofFromJson(json);
+  Map<String, dynamic> toJson() => _$NoveltyProofToJson(this);
 }
 
 @JsonSerializable()
