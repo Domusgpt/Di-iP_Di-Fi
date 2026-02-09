@@ -1,11 +1,18 @@
 //! Merkle Tree for Dividend Distribution
 //!
 //! Generates Merkle proofs for gas-efficient on-chain dividend claims.
-//! Each leaf is: keccak256(abi.encodePacked(address, amount))
+//! Each leaf is: keccak256(keccak256(abi.encode(address, amount)))
+//! The double hashing corresponds to Solidity's:
+//! `keccak256(bytes.concat(keccak256(abi.encode(addr, amt))))`
+//!
 //! The root is stored on-chain in the DividendVault contract.
 
-use sha2::{Sha256, Digest};
+use tiny_keccak::{Hasher, Keccak};
+use ethers::abi::Token;
+use ethers::types::{Address, U256};
+use std::str::FromStr;
 use hex;
+use anyhow::{Result, anyhow};
 
 /// A leaf node in the Merkle tree representing a single claim.
 #[derive(Debug, Clone)]
@@ -15,16 +22,16 @@ pub struct ClaimLeaf {
 }
 
 /// Build a Merkle tree from a list of claims and return (root, proofs).
-pub fn build_merkle_tree(claims: &[ClaimLeaf]) -> (String, Vec<Vec<String>>) {
+pub fn build_merkle_tree(claims: &[ClaimLeaf]) -> Result<(String, Vec<Vec<String>>)> {
     if claims.is_empty() {
-        return (String::new(), vec![]);
+        return Ok((String::new(), vec![]));
     }
 
     // Generate leaf hashes
-    let mut leaves: Vec<[u8; 32]> = claims
-        .iter()
-        .map(|claim| hash_leaf(&claim.wallet_address, &claim.amount_wei))
-        .collect();
+    let mut leaves = Vec::with_capacity(claims.len());
+    for claim in claims {
+        leaves.push(hash_leaf(&claim.wallet_address, &claim.amount_wei)?);
+    }
 
     // Pad to power of 2
     let target_len = leaves.len().next_power_of_two();
@@ -47,6 +54,9 @@ pub fn build_merkle_tree(claims: &[ClaimLeaf]) -> (String, Vec<Vec<String>>) {
 
     let root = hex::encode(tree[1]);
 
+    // Add "0x" prefix for consistency with standard tools
+    let root = format!("0x{}", root);
+
     // Generate proofs for each original claim
     let mut proofs = Vec::new();
     for i in 0..claims.len() {
@@ -55,29 +65,48 @@ pub fn build_merkle_tree(claims: &[ClaimLeaf]) -> (String, Vec<Vec<String>>) {
 
         while idx > 1 {
             let sibling = if idx % 2 == 0 { idx + 1 } else { idx - 1 };
-            proof.push(hex::encode(tree[sibling]));
+            // Add "0x" prefix to proof elements
+            proof.push(format!("0x{}", hex::encode(tree[sibling])));
             idx /= 2;
         }
 
         proofs.push(proof);
     }
 
-    (root, proofs)
+    Ok((root, proofs))
 }
 
-fn hash_leaf(address: &str, amount: &str) -> [u8; 32] {
-    let mut hasher = Sha256::new();
-    hasher.update(address.as_bytes());
-    hasher.update(amount.as_bytes());
-    let result = hasher.finalize();
-    let mut output = [0u8; 32];
-    output.copy_from_slice(&result);
-    output
+fn hash_leaf(address: &str, amount_wei: &str) -> Result<[u8; 32]> {
+    // 1. Parse inputs
+    let addr = Address::from_str(address)
+        .map_err(|e| anyhow!("Invalid address format '{}': {}", address, e))?;
+
+    let amt = U256::from_dec_str(amount_wei)
+        .map_err(|e| anyhow!("Invalid amount format '{}': {}", amount_wei, e))?;
+
+    // 2. ABI Encode: abi.encode(address, amount)
+    // This adds proper 32-byte padding to both arguments
+    let encoded = ethers::abi::encode(&[Token::Address(addr), Token::Uint(amt)]);
+
+    // 3. Inner Hash: keccak256(...)
+    let mut inner_hasher = Keccak::v256();
+    let mut inner_hash = [0u8; 32];
+    inner_hasher.update(&encoded);
+    inner_hasher.finalize(&mut inner_hash);
+
+    // 4. Outer Hash: keccak256(inner_hash)
+    // Matches Solidity: keccak256(bytes.concat(keccak256(...)))
+    let mut outer_hasher = Keccak::v256();
+    let mut outer_hash = [0u8; 32];
+    outer_hasher.update(&inner_hash);
+    outer_hasher.finalize(&mut outer_hash);
+
+    Ok(outer_hash)
 }
 
 fn hash_pair(left: &[u8; 32], right: &[u8; 32]) -> [u8; 32] {
-    let mut hasher = Sha256::new();
-    // Sort to ensure deterministic ordering
+    let mut hasher = Keccak::v256();
+    // Sort to ensure deterministic ordering (Zeppelin standard)
     if left <= right {
         hasher.update(left);
         hasher.update(right);
@@ -85,9 +114,9 @@ fn hash_pair(left: &[u8; 32], right: &[u8; 32]) -> [u8; 32] {
         hasher.update(right);
         hasher.update(left);
     }
-    let result = hasher.finalize();
+
     let mut output = [0u8; 32];
-    output.copy_from_slice(&result);
+    hasher.finalize(&mut output);
     output
 }
 
@@ -98,11 +127,13 @@ mod tests {
     #[test]
     fn test_merkle_tree_single_claim() {
         let claims = vec![ClaimLeaf {
-            wallet_address: "0xAbC123".to_string(),
+            // Wait, ethers::Address::from_str is strict. "0xAbC123" is too short.
+            // Use a real-looking fake address.
+            wallet_address: "0x71C7656EC7ab88b098defB751B7401B5f6d8976F".to_string(),
             amount_wei: "1000000".to_string(),
         }];
 
-        let (root, proofs) = build_merkle_tree(&claims);
+        let (root, proofs) = build_merkle_tree(&claims).expect("Failed to build merkle tree");
         assert!(!root.is_empty());
         assert_eq!(proofs.len(), 1);
     }
@@ -111,20 +142,20 @@ mod tests {
     fn test_merkle_tree_multiple_claims() {
         let claims = vec![
             ClaimLeaf {
-                wallet_address: "0xAAA".to_string(),
+                wallet_address: "0x71C7656EC7ab88b098defB751B7401B5f6d8976F".to_string(),
                 amount_wei: "1000000".to_string(),
             },
             ClaimLeaf {
-                wallet_address: "0xBBB".to_string(),
+                wallet_address: "0xeb8da55a0aa150d18b973523cf305342eb35197f".to_string(),
                 amount_wei: "2000000".to_string(),
             },
             ClaimLeaf {
-                wallet_address: "0xCCC".to_string(),
+                wallet_address: "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1".to_string(),
                 amount_wei: "3000000".to_string(),
             },
         ];
 
-        let (root, proofs) = build_merkle_tree(&claims);
+        let (root, proofs) = build_merkle_tree(&claims).expect("Failed to build merkle tree");
         assert!(!root.is_empty());
         assert_eq!(proofs.len(), 3);
         // Each proof should have log2(4) = 2 elements (padded to 4 leaves)
@@ -133,8 +164,44 @@ mod tests {
 
     #[test]
     fn test_empty_claims() {
-        let (root, proofs) = build_merkle_tree(&[]);
+        let (root, proofs) = build_merkle_tree(&[]).expect("Failed to build merkle tree");
         assert!(root.is_empty());
         assert!(proofs.is_empty());
+    }
+
+    #[test]
+    fn test_regression_vectors_for_solidity() {
+        // These values are used in `contracts/test/MerkleCompatibility.test.ts`
+        // If you change this test, you MUST update the Solidity test as well.
+        let claims = vec![
+            ClaimLeaf {
+                wallet_address: "0x71C7656EC7ab88b098defB751B7401B5f6d8976F".to_string(),
+                amount_wei: "1000000000000000000".to_string(),
+            },
+            ClaimLeaf {
+                wallet_address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266".to_string(), // Hardhat Account #0
+                amount_wei: "5000000000000000000".to_string(),
+            }
+        ];
+
+        let (root, proofs) = build_merkle_tree(&claims).expect("Failed to build merkle tree");
+
+        // Assert Root
+        assert_eq!(root, "0x8140f9815bda3adf6750884e0c94c193c9be3e5891d90d97d4e73934124ec5b1");
+
+        // Assert Proofs
+        assert_eq!(proofs[0][0], "0x08d32c0b719aa7d191069df3aa4963442b48ab22b642e50b485c5be6e0450df5");
+        assert_eq!(proofs[1][0], "0x68ac16a2532f97e96240f8ecf32dd7c2c94330f78c43d505288b9a7dace30882");
+    }
+
+    #[test]
+    fn test_invalid_address_returns_error() {
+        let claims = vec![ClaimLeaf {
+            wallet_address: "invalid_address".to_string(),
+            amount_wei: "100".to_string(),
+        }];
+
+        let result = build_merkle_tree(&claims);
+        assert!(result.is_err());
     }
 }

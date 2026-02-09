@@ -85,6 +85,18 @@ class WalletNotifier extends StateNotifier<WalletState> {
   Future<void> connect() async {
     if (state.isConnecting) return;
 
+    // MOCK MODE: If project ID is not set or we are in mock mode
+    if (_projectId == 'ideacapital-dev') {
+      await Future.delayed(const Duration(seconds: 1));
+      state = const WalletState(
+        isConnected: true,
+        isConnecting: false,
+        address: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F', // Mock Test User
+        chainId: 137,
+      );
+      return;
+    }
+
     state = state.copyWith(isConnecting: true, error: null);
 
     try {
@@ -207,8 +219,20 @@ class WalletNotifier extends StateNotifier<WalletState> {
     required BigInt value,
     required String data,
   }) async {
-    if (!state.isConnected || _session == null || _web3App == null) {
+    if (!state.isConnected) {
       throw Exception('Wallet not connected');
+    }
+
+    // MOCK MODE
+    if (_session == null || _projectId == 'ideacapital-dev') {
+      await Future.delayed(const Duration(seconds: 2));
+      // Return a fake TX hash
+      // Format: 0x... (64 chars)
+      return '0x${DateTime.now().millisecondsSinceEpoch.toRadixString(16).padLeft(64, '0')}';
+    }
+
+    if (_session == null || _web3App == null) {
+        throw Exception('Wallet session invalid');
     }
 
     final chainId = 'eip155:${state.chainId ?? 137}';

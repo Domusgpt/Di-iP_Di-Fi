@@ -5,6 +5,18 @@
  * and publish flow.
  */
 
+import { Invention, InventionStatus } from "../src/models/types";
+import * as admin from "firebase-admin";
+
+// Define a type for our Firestore mock to replace 'any' casts
+interface MockFirestore {
+  collection: jest.Mock;
+  doc: jest.Mock;
+  set: jest.Mock;
+  get: jest.Mock;
+  update: jest.Mock;
+}
+
 // Mock firebase-admin before any imports
 jest.mock("firebase-admin", () => {
   const firestoreMock = {
@@ -37,10 +49,9 @@ jest.mock("uuid", () => ({
   v4: jest.fn().mockReturnValue("test-uuid-1234"),
 }));
 
-import * as admin from "firebase-admin";
-
 describe("Invention Service", () => {
-  const db = admin.firestore() as any;
+  // Use the defined interface instead of 'any'
+  const db = admin.firestore() as unknown as MockFirestore;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -48,10 +59,10 @@ describe("Invention Service", () => {
 
   describe("POST /analyze", () => {
     it("should reject requests with no input", () => {
-      const body = {};
-      const hasInput = body.hasOwnProperty("raw_text") ||
-        body.hasOwnProperty("voice_url") ||
-        body.hasOwnProperty("sketch_url");
+      const body: Record<string, unknown> = {};
+      const hasInput = Object.prototype.hasOwnProperty.call(body, "raw_text") ||
+        Object.prototype.hasOwnProperty.call(body, "voice_url") ||
+        Object.prototype.hasOwnProperty.call(body, "sketch_url");
       expect(hasInput).toBe(false);
     });
 
@@ -59,7 +70,8 @@ describe("Invention Service", () => {
       const inventionId = "test-uuid-1234";
       const userId = "user-abc";
 
-      const draft = {
+      // Type-safe draft object
+      const draft: Partial<Invention> = {
         invention_id: inventionId,
         status: "AI_PROCESSING",
         creator_id: userId,
@@ -85,31 +97,36 @@ describe("Invention Service", () => {
 
   describe("POST /:id/publish", () => {
     it("should reject publishing non-REVIEW_READY inventions", async () => {
+      // Mock data matching the Invention interface structure
+      const mockData: Partial<Invention> = {
+        creator_id: "user-abc",
+        status: "AI_PROCESSING",
+      };
+
       (db.get as jest.Mock).mockResolvedValueOnce({
         exists: true,
-        data: () => ({
-          creator_id: "user-abc",
-          status: "AI_PROCESSING",
-        }),
+        data: () => mockData,
       });
 
       const doc = await db.collection("inventions").doc("inv-1").get();
-      const data = doc.data();
+      const data = doc.data() as Invention;
 
       expect(data.status).not.toBe("REVIEW_READY");
     });
 
     it("should allow publishing REVIEW_READY inventions", async () => {
+      const mockData: Partial<Invention> = {
+        creator_id: "user-abc",
+        status: "REVIEW_READY",
+      };
+
       (db.get as jest.Mock).mockResolvedValueOnce({
         exists: true,
-        data: () => ({
-          creator_id: "user-abc",
-          status: "REVIEW_READY",
-        }),
+        data: () => mockData,
       });
 
       const doc = await db.collection("inventions").doc("inv-1").get();
-      const data = doc.data();
+      const data = doc.data() as Invention;
 
       expect(data.status).toBe("REVIEW_READY");
     });
@@ -126,10 +143,10 @@ describe("Invention Service", () => {
     });
 
     it("should return invention data for existing documents", async () => {
-      const inventionData = {
+      const inventionData: Partial<Invention> = {
         invention_id: "inv-123",
         status: "LIVE",
-        social_metadata: { display_title: "Test Invention" },
+        social_metadata: { display_title: "Test Invention", short_pitch: "test" },
       };
 
       (db.get as jest.Mock).mockResolvedValueOnce({
