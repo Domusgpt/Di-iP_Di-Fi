@@ -124,6 +124,17 @@
       "type": "object",
       "description": "AI pre-vetting to save lawyers time",
       "properties": {
+        "novelty_proof": {
+          "type": "object",
+          "description": "Zero-Knowledge Proof of content ownership/novelty",
+          "properties": {
+            "proof": { "type": "object" },
+            "publicSignals": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
         "potential_prior_art": {
           "type": "array",
           "items": {

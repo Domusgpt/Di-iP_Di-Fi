@@ -23,6 +23,7 @@ from pydantic import BaseModel
 
 from src.services.llm_service import LLMService
 from src.services.patent_search import PatentSearchService
+from src.services.zkp_service import ZKPService
 from src.models.invention import (
     InventionDraft,
     SocialMetadata,
@@ -36,6 +37,7 @@ router = APIRouter()
 
 llm_service = LLMService()
 patent_service = PatentSearchService()
+zkp_service = ZKPService()
 
 
 class AnalyzeRequest(BaseModel):
@@ -52,6 +54,12 @@ class ChatRequest(BaseModel):
     invention_id: str
     creator_id: str
     message: str
+
+
+class ProveNoveltyRequest(BaseModel):
+    """Request to generate a ZK proof for an invention."""
+    invention_id: str
+    content: str
 
 
 class AnalyzeResponse(BaseModel):
@@ -177,6 +185,39 @@ async def continue_chat(request: ChatRequest):
         "updated_fields": updated_fields,
         "schema_completeness": response.get("completeness_percentage", 0),
     }
+
+
+@router.post("/prove_novelty")
+async def prove_novelty(request: ProveNoveltyRequest):
+    """
+    Generate a Zero-Knowledge Proof of novelty for an invention.
+    Stores the proof in Firestore.
+    """
+    logger.info(f"Generating ZKP for invention {request.invention_id}")
+
+    try:
+        proof = await zkp_service.generate_proof(request.content)
+
+        # Store proof in Firestore
+        try:
+            from google.cloud import firestore as gc_firestore
+            db = gc_firestore.AsyncClient()
+            await db.collection("inventions").document(request.invention_id).update({
+                "novelty_proof": proof
+            })
+            logger.info(f"Stored ZKP for invention {request.invention_id}")
+        except Exception as e:
+            logger.warning(f"Failed to store ZKP in Firestore: {e}")
+            # We return the proof anyway so the caller has it
+
+        return {
+            "invention_id": request.invention_id,
+            "status": "PROOF_GENERATED",
+            "proof": proof
+        }
+    except Exception as e:
+        logger.error(f"ZKP generation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 async def _transcribe_voice(voice_url: str) -> str:
