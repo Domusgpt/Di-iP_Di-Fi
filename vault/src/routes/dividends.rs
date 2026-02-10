@@ -73,7 +73,10 @@ async fn distribute_dividends(
     .bind(&invention_id)
     .fetch_all(&pool)
     .await
-    .unwrap_or_default(); // Default to empty if query fails or no splits
+    .map_err(|e| {
+        tracing::error!("Failed to fetch compliance fee splits: {}", e);
+        axum::http::StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     let mut net_revenue = revenue_usdc;
     let mut claims_data: Vec<(String, f64, String)> = Vec::new();
