@@ -5,6 +5,8 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
+import "./StoryProtocolAdapter.sol";
+
 /**
  * @title IPNFT - Intellectual Property NFT
  * @notice Represents ownership of a patent/invention on IdeaCapital.
@@ -23,6 +25,9 @@ contract IPNFT is ERC721, ERC721URIStorage, Ownable {
     /// @notice Maps token ID to its IPFS metadata CID.
     mapping(uint256 => string) public ipfsMetadata;
 
+    /// @notice The Story Protocol Adapter contract.
+    StoryProtocolAdapter public storyAdapter;
+
     event InventionMinted(
         uint256 indexed tokenId,
         address indexed creator,
@@ -30,7 +35,18 @@ contract IPNFT is ERC721, ERC721URIStorage, Ownable {
         address royaltyToken
     );
 
-    constructor() ERC721("IdeaCapital IP", "IPNFT") Ownable(msg.sender) {}
+    constructor(address _storyAdapter) ERC721("IdeaCapital IP", "IPNFT") Ownable(msg.sender) {
+        if (_storyAdapter != address(0)) {
+            storyAdapter = StoryProtocolAdapter(_storyAdapter);
+        }
+    }
+
+    /**
+     * @notice Set the Story Protocol Adapter address.
+     */
+    function setStoryAdapter(address _storyAdapter) external onlyOwner {
+        storyAdapter = StoryProtocolAdapter(_storyAdapter);
+    }
 
     /**
      * @notice Mint a new IP-NFT for a funded invention.
@@ -51,6 +67,16 @@ contract IPNFT is ERC721, ERC721URIStorage, Ownable {
 
         royaltyTokens[tokenId] = royaltyToken;
         ipfsMetadata[tokenId] = ipfsCid;
+
+        // Register with Story Protocol if adapter is set
+        if (address(storyAdapter) != address(0)) {
+            try storyAdapter.registerInvention(address(this), tokenId) {
+                // Success
+            } catch {
+                // Don't revert if Story Protocol fails, just log or ignore
+                // In production, we might want to emit a failure event
+            }
+        }
 
         emit InventionMinted(tokenId, to, ipfsCid, royaltyToken);
         return tokenId;

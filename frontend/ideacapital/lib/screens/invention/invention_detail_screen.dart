@@ -30,6 +30,7 @@ class InventionDetailScreen extends ConsumerWidget {
           final social = invention.socialMetadata;
           final brief = invention.technicalBrief;
           final funding = invention.funding;
+          final risk = invention.riskAssessment;
 
           return CustomScrollView(
             slivers: [
@@ -66,15 +67,28 @@ class InventionDetailScreen extends ConsumerWidget {
                       // Tags + Like button row
                       Row(
                         children: [
-                          if (social.viralityTags != null)
-                            Expanded(
-                              child: Wrap(
-                                spacing: 8,
-                                children: social.viralityTags!
-                                    .map((t) => Chip(label: Text(t)))
-                                    .toList(),
-                              ),
+                          Expanded(
+                            child: Wrap(
+                              spacing: 8,
+                              children: [
+                                // ZKP Novelty Badge
+                                if (risk?.noveltyProof != null)
+                                  Tooltip(
+                                    message: 'Novelty verified via Zero-Knowledge Proof',
+                                    child: Chip(
+                                      avatar: const Icon(Icons.security, size: 16, color: Colors.white),
+                                      label: const Text('Verifiable Novelty'),
+                                      backgroundColor: theme.colorScheme.tertiary,
+                                      labelStyle: TextStyle(color: theme.colorScheme.onTertiary),
+                                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                                    ),
+                                  ),
+
+                                if (social.viralityTags != null)
+                                  ...social.viralityTags!.map((t) => Chip(label: Text(t))),
+                              ],
                             ),
+                          ),
                           LikeButton(inventionId: inventionId),
                         ],
                       ),

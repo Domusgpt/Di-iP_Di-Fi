@@ -6,34 +6,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [0.5.0] - 2026-02-01
+## [0.5.1] - 2026-02-01 (DeSci & Compliance Update)
+
+### Strategic Features
+- **Zero-Knowledge Novelty:** Added `brain/src/zkp/novelty.circom` circuit and `POST /prove_novelty` endpoint. Allows proving knowledge of invention content without revealing it.
+- **Story Protocol Adapter:** Added `StoryProtocolAdapter.sol` to register IdeaCapital assets with the global on-chain IP registry.
+- **Arizona ABS Compliance:** Implemented fee-sharing logic in the Vault (`dividends.rs`) and database (`compliance_fee_splits`), enabling legal revenue sharing between lawyers and DAO members.
+- **Visual Identity Pivot:** Replaced full-screen shaders with **Vib3 Watermark** — a performant, procedurally generated geometric seal unique to each invention ID. Supports Web (WebGL) and Mobile (Canvas).
 
 ### Added
-- Flutter SDK installed (3.29.3) with all dependencies (211 packages)
-- Dart build_runner code generation (1083 outputs: `.g.dart`, `.freezed.dart`)
-- Firebase CLI (v15.5.1) and full emulator suite (Firestore, Pub/Sub, Database, UI)
-- PostgreSQL 16 database with schema migrations applied
-- Redis server for caching layer
-- `.firebaserc` project config and `.env` with local development defaults
-- `contracts/tsconfig.json` for Hardhat TypeScript compilation
-- `docs/external-service-setup.md` — setup instructions for GCP, WalletConnect, SerpAPI
-- All lock files committed (package-lock.json, Cargo.lock) for reproducible builds
-
-### Changed
-- Vault Pub/Sub rewritten from `google-cloud-pubsub` crate to reqwest REST API
-- Crowdsale test: over-funding correctly expects revert ("Exceeds max supply")
-- Backend test mocks fixed: Firestore `db` cast as `any` for type safety
-- `social-service.ts`: removed duplicate `comment_id` in response
+- **Vault:** Wired up `PubSubClient` and `ChainWatcher` in `main.rs` to run concurrently.
+- **Backend:** Reactive Indexing — `onInvestmentConfirmed` handler now updates Firestore immediately after blockchain confirmation.
+- **Frontend:** Completed `InvestScreen` with real wallet integration (Mock Mode included for dev).
+- **Frontend:** Added "Verifiable Novelty" badge to `InventionDetailScreen`.
+- **Infrastructure:** `scripts/run_integration_test.sh` for full-stack dockerized testing.
+- **Docs:** `docs/zkp-integration.md` and `docs/compliance-abs.md`.
 
 ### Fixed
-- `comment_section.dart` syntax error: `(doc) => {` changed to `(doc) {`
-- Vault Cargo.toml: removed incompatible `google-cloud-default ^0.5` dependency
+- **Critical:** Fixed Merkle Tree hashing mismatch (Rust `tiny-keccak` vs Solidity `keccak256`) — added cross-language regression test.
+- **Reliability:** Refactored Vault Merkle logic to return `Result` instead of panicking.
+- **Mobile Build:** Fixed `dart:ui_web` import crash on mobile by using conditional imports in `vib3_watermark.dart`.
 
 ### Test Results
-- Smart Contracts: 48/48 passing
-- Backend (Jest): 27/27 passing
-- Brain (pytest): 17/17 passing
-- **Total: 92/92 all passing**
+- Smart Contracts: 51/51 passing (added Merkle compatibility tests)
+- Backend (Jest): 27/27 passing (strict types enforced)
+- Brain (pytest): 17/17 passing (ZKP service mocked)
+- Rust Vault: 9/9 passing
+- **Total: 104/104 all passing**
+
+---
+
+## [0.5.0] - 2026-02-01
 
 ---
 

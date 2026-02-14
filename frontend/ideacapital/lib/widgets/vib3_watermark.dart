@@ -26,12 +26,58 @@ class Vib3Watermark extends StatelessWidget {
     final config = Vib3Identity.generate(seed);
     final configJson = jsonEncode(config.toJson());
 
+    void showDebugInfo() {
+      showDialog(
+        context: context,
+        builder: (c) => AlertDialog(
+          title: const Text('Vib3 Identity DNA'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Seed: $seed'),
+                const Divider(),
+                Text('Geometry ID: ${config.geometryType}'),
+                Text('Speed: ${config.speed.toStringAsFixed(2)}'),
+                Text('Zoom: ${config.zoom.toStringAsFixed(2)}'),
+                Text('Distortion: ${config.distortion.toStringAsFixed(2)}'),
+                Text('Rotation: ${config.rotationX.toStringAsFixed(1)}, ${config.rotationY.toStringAsFixed(1)}, ${config.rotationZ.toStringAsFixed(1)}'),
+                const SizedBox(height: 8),
+                Row(children: [
+                  const Text('Colors: '),
+                  _ColorBox(config.colorPrimary),
+                  const SizedBox(width: 4),
+                  _ColorBox(config.colorSecondary),
+                ]),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(c),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
+    }
+
     // 2. Render using the appropriate platform view
+    Widget content;
     if (kIsWeb) {
       final viewType = 'vib3-watermark-${seed.hashCode}';
       registerVib3ViewFactory(viewType, configJson);
+      content = buildVib3WebView(viewType);
+    } else {
+      content = CustomPaint(
+        painter: _Vib3GeometricPainter(config),
+      );
+    }
 
-      return Opacity(
+    return GestureDetector(
+      onLongPress: showDebugInfo,
+      child: Opacity(
         opacity: opacity,
         child: Container(
           width: size,
@@ -47,31 +93,30 @@ class Vib3Watermark extends StatelessWidget {
             ],
           ),
           clipBehavior: Clip.antiAlias,
-          child: buildVib3WebView(viewType),
+          child: content,
         ),
-      );
-    }
+      ),
+    );
+  }
+}
 
-    // Default/Mobile fallback (CustomPainter for native performance)
-    return Opacity(
-      opacity: opacity,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 8,
-              offset: const Offset(2, 2),
-            ),
-          ],
+class _ColorBox extends StatelessWidget {
+  final List<double> rgb;
+  const _ColorBox(this.rgb);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 16,
+      height: 16,
+      decoration: BoxDecoration(
+        color: Color.fromARGB(
+          255,
+          (rgb[0] * 255).toInt(),
+          (rgb[1] * 255).toInt(),
+          (rgb[2] * 255).toInt(),
         ),
-        clipBehavior: Clip.antiAlias,
-        child: CustomPaint(
-          painter: _Vib3GeometricPainter(config),
-        ),
+        border: Border.all(color: Colors.grey),
       ),
     );
   }

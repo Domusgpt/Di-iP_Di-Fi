@@ -7,10 +7,20 @@ describe("IPNFT", function () {
   let owner: any;
   let inventor: any;
 
+  let storyAdapter: any;
+
   beforeEach(async function () {
     [owner, inventor] = await ethers.getSigners();
+
+    // Deploy Mock Story Adapter
+    const StoryFactory = await ethers.getContractFactory("StoryProtocolAdapter");
+    // Pass zero address for registry since we are mocking/testing the adapter itself
+    // In a real integration test we'd mock the registry too
+    storyAdapter = await StoryFactory.deploy(ethers.ZeroAddress);
+    await storyAdapter.waitForDeployment();
+
     const IPNFT_Factory = await ethers.getContractFactory("IPNFT");
-    ipnft = await IPNFT_Factory.deploy();
+    ipnft = await IPNFT_Factory.deploy(await storyAdapter.getAddress());
     await ipnft.waitForDeployment();
   });
 
