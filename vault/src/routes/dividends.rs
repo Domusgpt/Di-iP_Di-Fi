@@ -78,21 +78,24 @@ async fn distribute_dividends(
         axum::http::StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    let mut net_revenue = revenue_usdc;
-    let mut claims_data: Vec<(String, f64, String)> = Vec::new();
+    use rust_decimal::prelude::*;
+    let revenue_decimal = Decimal::from_f64_retain(revenue_usdc).ok_or(axum::http::StatusCode::BAD_REQUEST)?;
+    let mut net_revenue = revenue_decimal;
+    let mut claims_data: Vec<(String, String)> = Vec::new(); // (address, amount_wei)
 
     // Calculate and deduct fees
     for split in fee_splits {
-        use rust_decimal::prelude::ToPrimitive;
-        let pct = split.percentage.to_f64().unwrap_or(0.0);
-        if pct > 0.0 {
-            let fee_amount = revenue_usdc * (pct / 100.0);
+        if split.percentage > Decimal::ZERO {
+            let fee_amount = (revenue_decimal * split.percentage) / Decimal::from(100);
             net_revenue -= fee_amount;
 
-            let amount_wei = format!("{}", (fee_amount * 1_000_000.0) as u64);
-            tracing::info!("ABS Fee Split: {} to {} ({:?}%)", fee_amount, split.recipient_address, pct);
+            // Format to 6 decimals then scale to wei-like integer
+            let amount_wei_decimal = fee_amount * Decimal::from(1_000_000);
+            let amount_wei = amount_wei_decimal.round().to_string();
 
-            claims_data.push((split.recipient_address, fee_amount, amount_wei));
+            tracing::info!("ABS Fee Split: {} to {} ({:?}%)", fee_amount, split.recipient_address, split.percentage);
+
+            claims_data.push((split.recipient_address, amount_wei));
         }
     }
 
@@ -103,21 +106,25 @@ async fn distribute_dividends(
     }
 
     // 2. Calculate each holder's share of NET revenue and build Merkle tree leaves
-    let holder_claims: Vec<(String, f64, String)> = holders
-        .iter()
-        .map(|h| {
-            let share = (h.token_balance / total_supply) * net_revenue;
-            // Convert USDC to wei-like representation (6 decimals for USDC)
-            let amount_wei = format!("{}", (share * 1_000_000.0) as u64);
-            (h.wallet_address.clone(), share, amount_wei)
-        })
-        .collect();
+    let total_supply_decimal = Decimal::from_f64_retain(total_supply).unwrap_or(Decimal::ONE);
 
-    claims_data.extend(holder_claims);
+    for h in holders {
+        let balance_decimal = Decimal::from_f64_retain(h.token_balance).unwrap_or(Decimal::ZERO);
+        if balance_decimal > Decimal::ZERO {
+            // Share calculation using Decimal
+            let share = (balance_decimal / total_supply_decimal) * net_revenue;
+
+            // Convert to integer string for Merkle tree (USDC 6 decimals -> Wei-like)
+            let amount_wei_decimal = share * Decimal::from(1_000_000);
+            let amount_wei = amount_wei_decimal.round().to_string();
+
+            claims_data.push((h.wallet_address.clone(), amount_wei));
+        }
+    }
 
     let merkle_leaves: Vec<ClaimLeaf> = claims_data
         .iter()
-        .map(|(addr, _, wei)| ClaimLeaf {
+        .map(|(addr, wei)| ClaimLeaf {
             wallet_address: addr.clone(),
             amount_wei: wei.clone(),
         })
@@ -151,8 +158,12 @@ async fn distribute_dividends(
     })?;
 
     // 5. Store individual claims with Merkle proofs
-    for (i, (addr, share, _)) in claims_data.iter().enumerate() {
+    for (i, (addr, amount_wei)) in claims_data.iter().enumerate() {
         let proof = &proofs[i];
+
+        // Convert wei-amount back to Decimal for DB storage (6 decimal places)
+        let amount_decimal = Decimal::from_str(amount_wei).unwrap_or_default() / Decimal::from(1_000_000);
+
         sqlx::query(
             r#"
             INSERT INTO dividend_claims (id, distribution_id, wallet_address, amount_usdc, merkle_proof, claimed, created_at)
@@ -162,7 +173,7 @@ async fn distribute_dividends(
         .bind(Uuid::new_v4())
         .bind(distribution_id)
         .bind(addr)
-        .bind(rust_decimal::Decimal::from_f64_retain(*share).unwrap_or_default())
+        .bind(amount_decimal)
         .bind(proof)
         .execute(&pool)
         .await
