@@ -7,6 +7,22 @@ This log tracks the chronological progress of the v0.6.0 milestone, documenting 
 
 ---
 
+## Session 2: Compliance Logging & Cleanup
+**Date:** 2026-02-01
+**Goal:** Implement audit trails for compliance and fix critical build blockers identified in the audit.
+
+### 1. Compliance Audit Logs
+- **Context:** The Arizona ABS model requires strict tracking of financial events. A "Fail Closed" logic is not enough; we need immutable proof of what happened.
+- **Action:** Created `audit_logs` table (`003_audit_logs.sql`) and wired `distribute_dividends` to write to it.
+- **Result:** Every `DIVIDEND_DISTRIBUTION` event now records the total revenue, net revenue, and fee count immutably.
+
+### 2. Dependency Hygiene
+- **Context:** The audit revealed "hallucinated" version numbers in `package.json` (e.g., TypeScript 5.9.3) which broke fresh installs.
+- **Action:** Downgraded `typescript` and `ts-jest` to stable versions (`^5.3.3` / `^29.1.2`).
+- **Result:** CI/CD pipelines will now pass `npm install`.
+
+---
+
 ## Session 1: Infrastructure & Hardening
 **Date:** 2026-02-01
 **Goal:** Address P1 risks from the audit (Floating Point Math) and lay the groundwork for production infrastructure (Terraform).

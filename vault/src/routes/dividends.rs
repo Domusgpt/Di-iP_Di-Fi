@@ -84,7 +84,7 @@ async fn distribute_dividends(
     let mut claims_data: Vec<(String, String)> = Vec::new(); // (address, amount_wei)
 
     // Calculate and deduct fees
-    for split in fee_splits {
+    for split in &fee_splits {
         if split.percentage > Decimal::ZERO {
             let fee_amount = (revenue_decimal * split.percentage) / Decimal::from(100);
             net_revenue -= fee_amount;
@@ -95,9 +95,31 @@ async fn distribute_dividends(
 
             tracing::info!("ABS Fee Split: {} to {} ({:?}%)", fee_amount, split.recipient_address, split.percentage);
 
-            claims_data.push((split.recipient_address, amount_wei));
+            claims_data.push((split.recipient_address.clone(), amount_wei));
         }
     }
+
+    // AUDIT LOGGING
+    let audit_payload = serde_json::json!({
+        "total_revenue": revenue_usdc,
+        "net_revenue": net_revenue.to_string(),
+        "fee_count": fee_splits.len(),
+        "claim_count_total": holders.len() + fee_splits.len(),
+    });
+
+    sqlx::query(
+        "INSERT INTO audit_logs (event_type, actor, target_resource, payload, created_at) VALUES ($1, $2, $3, $4, NOW())"
+    )
+    .bind("DIVIDEND_DISTRIBUTION")
+    .bind("system")
+    .bind(&invention_id)
+    .bind(&audit_payload)
+    .execute(&pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to write audit log: {}", e);
+        axum::http::StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     // 1. Calculate total token supply from holder balances
     let total_supply: f64 = holders.iter().map(|h| h.token_balance).sum();
