@@ -7,6 +7,25 @@ This log tracks the chronological progress of the v0.6.0 milestone, documenting 
 
 ---
 
+## Session 3: ZKP Activation
+**Date:** 2026-02-01
+**Goal:** Transition Zero-Knowledge Proofs from "stubbed" to "production-ready" (via Docker).
+
+### 1. ZKP Toolchain
+- **Context:** `circom` and `snarkjs` are required to generate real proofs, but installing them on every dev machine is painful.
+- **Action:** Updated `brain/Dockerfile` to install `nodejs`, `snarkjs`, and `circom` (binary).
+- **Result:** The production container can now generate real proofs.
+
+### 2. Circuit Compilation
+- **Action:** Created `brain/scripts/setup_zkp.sh` to compile `novelty.circom` and generate the `zkey` (Trusted Setup).
+- **Note:** This script performs a "dummy" trusted setup for development. A real MPC ceremony is needed for mainnet.
+
+### 3. Service Logic
+- **Action:** Updated `zkp_service.py` to check for `snarkjs`. If present, it spawns a subprocess to generate the proof. If missing (local dev), it falls back to the mock.
+- **Verification:** `pytest` confirmed the fallback logic works safely.
+
+---
+
 ## Session 2: Compliance Logging & Cleanup
 **Date:** 2026-02-01
 **Goal:** Implement audit trails for compliance and fix critical build blockers identified in the audit.
