@@ -108,5 +108,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      # Use "compile" to verify the schema itself is valid
-      - run: npx ajv-cli compile -s schemas/InventionSchema.json
+      # Use "compile" to verify the schema itself is valid.
+      # Note: We install ajv-formats to support formats like "date-time".
+      - run: npm install -g ajv-cli ajv-formats
+      - run: npx ajv-cli compile -s schemas/InventionSchema.json -c ajv-formats

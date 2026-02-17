@@ -119,7 +119,6 @@ pub async fn verify_investment_tx(
         // USDC has 6 decimals, tokens have 18 decimals
         decoded_amount = raw_amount.as_u128() as f64 / 1_000_000.0;
         decoded_tokens = raw_tokens.as_u128() as f64 / 1e18;
-        decoded_tokens = raw_tokens.as_u128() as f64 / 1e18;
     } else {
         // No Investment event found — use the expected amount as fallback
         tracing::warn!("No Investment event in logs, using expected amount");
