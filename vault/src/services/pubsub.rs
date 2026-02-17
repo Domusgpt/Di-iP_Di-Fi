@@ -6,6 +6,7 @@
 
 use anyhow::Result;
 use base64::Engine;
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use tracing;
 
@@ -16,7 +17,7 @@ pub struct InvestmentPendingMessage {
     pub invention_id: String,
     pub tx_hash: String,
     pub wallet_address: String,
-    pub amount_usdc: f64,
+    pub amount_usdc: Decimal,
 }
 
 /// Message published to `investment.confirmed` topic.
@@ -25,8 +26,8 @@ pub struct InvestmentConfirmedMessage {
     pub investment_id: String,
     pub invention_id: String,
     pub wallet_address: String,
-    pub amount_usdc: f64,
-    pub token_amount: f64,
+    pub amount_usdc: Decimal,
+    pub token_amount: Decimal,
     pub block_number: u64,
 }
 
@@ -304,14 +305,11 @@ async fn process_pending_investment(
 ) -> Result<()> {
     use crate::services::transaction_verifier;
 
-    let expected_amount = rust_decimal::Decimal::try_from(pending.amount_usdc)
-        .unwrap_or(rust_decimal::Decimal::ZERO);
-
     let verification = transaction_verifier::verify_investment_tx(
         rpc_url,
         &pending.tx_hash,
         &pending.wallet_address,
-        expected_amount,
+        pending.amount_usdc,
     )
     .await?;
 

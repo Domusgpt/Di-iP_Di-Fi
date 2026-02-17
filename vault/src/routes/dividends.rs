@@ -22,7 +22,7 @@ pub fn router(pool: PgPool) -> Router {
 /// Request body for dividend distribution.
 #[derive(serde::Deserialize)]
 struct DistributeRequest {
-    revenue_usdc: f64,
+    revenue_usdc: rust_decimal::Decimal,
     /// List of token holders with their balances.
     /// In production this would be fetched from the RoyaltyToken contract,
     /// but for MVP the caller provides this data.
@@ -32,7 +32,7 @@ struct DistributeRequest {
 #[derive(serde::Deserialize)]
 struct HolderBalance {
     wallet_address: String,
-    token_balance: f64,
+    token_balance: rust_decimal::Decimal,
 }
 
 /// POST /api/v1/vault/dividends/distribute/:invention_id
@@ -43,10 +43,11 @@ async fn distribute_dividends(
     Path(invention_id): Path<String>,
     Json(payload): Json<DistributeRequest>,
 ) -> Result<Json<DividendDistribution>, axum::http::StatusCode> {
+    use rust_decimal::prelude::*;
     let revenue_usdc = payload.revenue_usdc;
     let holders = &payload.holders;
 
-    if holders.is_empty() || revenue_usdc <= 0.0 {
+    if holders.is_empty() || revenue_usdc <= Decimal::ZERO {
         return Err(axum::http::StatusCode::BAD_REQUEST);
     }
 
@@ -78,15 +79,14 @@ async fn distribute_dividends(
         axum::http::StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    use rust_decimal::prelude::*;
-    let revenue_decimal = Decimal::from_f64_retain(revenue_usdc).ok_or(axum::http::StatusCode::BAD_REQUEST)?;
-    let mut net_revenue = revenue_decimal;
+    // use rust_decimal::prelude::*; // Already imported above
+    let mut net_revenue = revenue_usdc;
     let mut claims_data: Vec<(String, String)> = Vec::new(); // (address, amount_wei)
 
     // Calculate and deduct fees
     for split in &fee_splits {
         if split.percentage > Decimal::ZERO {
-            let fee_amount = (revenue_decimal * split.percentage) / Decimal::from(100);
+            let fee_amount = (revenue_usdc * split.percentage) / Decimal::from(100);
             net_revenue -= fee_amount;
 
             // Format to 6 decimals then scale to wei-like integer
@@ -122,19 +122,17 @@ async fn distribute_dividends(
     })?;
 
     // 1. Calculate total token supply from holder balances
-    let total_supply: f64 = holders.iter().map(|h| h.token_balance).sum();
-    if total_supply <= 0.0 {
+    let total_supply: Decimal = holders.iter().map(|h| h.token_balance).sum();
+    if total_supply <= Decimal::ZERO {
         return Err(axum::http::StatusCode::BAD_REQUEST);
     }
 
     // 2. Calculate each holder's share of NET revenue and build Merkle tree leaves
-    let total_supply_decimal = Decimal::from_f64_retain(total_supply).unwrap_or(Decimal::ONE);
 
     for h in holders {
-        let balance_decimal = Decimal::from_f64_retain(h.token_balance).unwrap_or(Decimal::ZERO);
-        if balance_decimal > Decimal::ZERO {
+        if h.token_balance > Decimal::ZERO {
             // Share calculation using Decimal
-            let share = (balance_decimal / total_supply_decimal) * net_revenue;
+            let share = (h.token_balance / total_supply) * net_revenue;
 
             // Convert to integer string for Merkle tree (USDC 6 decimals -> Wei-like)
             let amount_wei_decimal = share * Decimal::from(1_000_000);
@@ -169,7 +167,7 @@ async fn distribute_dividends(
     )
     .bind(distribution_id)
     .bind(&invention_id)
-    .bind(rust_decimal::Decimal::from_f64_retain(revenue_usdc).unwrap_or_default())
+    .bind(revenue_usdc)
     .bind(&merkle_root)
     .bind(claims_data.len() as i32)
     .execute(&pool)
@@ -215,8 +213,7 @@ async fn distribute_dividends(
     let distribution = DividendDistribution {
         id: distribution_id,
         invention_id,
-        total_revenue_usdc: rust_decimal::Decimal::from_f64_retain(revenue_usdc)
-            .unwrap_or_default(),
+        total_revenue_usdc: revenue_usdc,
         merkle_root,
         claim_count: claims_data.len() as i32,
         created_at: chrono::Utc::now(),

@@ -70,7 +70,7 @@ async fn verify_transaction(
     .bind(&req.tx_hash)
     .bind(InvestmentStatus::Confirmed)
     .bind(verification.block_number as i64)
-    .bind(rust_decimal::Decimal::from_f64_retain(verification.token_amount))
+    .bind(verification.token_amount)
     .fetch_one(&pool)
     .await
     .map_err(|e| {

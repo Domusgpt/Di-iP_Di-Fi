@@ -5,6 +5,8 @@
 
 use anyhow::{anyhow, Result};
 use ethers::prelude::*;
+use rust_decimal::Decimal;
+use rust_decimal::prelude::*;
 use std::sync::Arc;
 use tracing;
 
@@ -17,8 +19,8 @@ pub struct VerificationResult {
     pub block_number: u64,
     pub gas_used: u64,
     pub investor_address: String,
-    pub amount_usdc: f64,
-    pub token_amount: f64,
+    pub amount_usdc: Decimal,
+    pub token_amount: Decimal,
 }
 
 /// Verify a Crowdsale investment transaction.
@@ -51,8 +53,8 @@ pub async fn verify_investment_tx(
                 block_number: 0,
                 gas_used: 0,
                 investor_address: String::new(),
-                amount_usdc: 0.0,
-                token_amount: 0.0,
+                amount_usdc: Decimal::ZERO,
+                token_amount: Decimal::ZERO,
             });
         }
     };
@@ -69,8 +71,8 @@ pub async fn verify_investment_tx(
             block_number: receipt.block_number.map(|b| b.as_u64()).unwrap_or(0),
             gas_used: receipt.gas_used.map(|g| g.as_u64()).unwrap_or(0),
             investor_address: String::new(),
-            amount_usdc: 0.0,
-            token_amount: 0.0,
+            amount_usdc: Decimal::ZERO,
+            token_amount: Decimal::ZERO,
         });
     }
 
@@ -96,8 +98,8 @@ pub async fn verify_investment_tx(
         "Investment(address,uint256,uint256)",
     ));
 
-    let decoded_amount: f64;
-    let decoded_tokens: f64;
+    let decoded_amount: Decimal;
+    let decoded_tokens: Decimal;
 
     if let Some(investment_log) = receipt
         .logs
@@ -116,14 +118,20 @@ pub async fn verify_investment_tx(
         let raw_amount = decoded[0].clone().into_uint().unwrap_or(U256::zero());
         let raw_tokens = decoded[1].clone().into_uint().unwrap_or(U256::zero());
 
-        // USDC has 6 decimals, tokens have 18 decimals
-        decoded_amount = raw_amount.as_u128() as f64 / 1_000_000.0;
-        decoded_tokens = raw_tokens.as_u128() as f64 / 1e18;
+        // USDC has 6 decimals
+        let amount_u128 = raw_amount.as_u128();
+        decoded_amount = Decimal::from_u128(amount_u128).unwrap_or(Decimal::ZERO)
+            / Decimal::from(1_000_000);
+
+        // Tokens have 18 decimals
+        let tokens_u128 = raw_tokens.as_u128();
+        decoded_tokens = Decimal::from_u128(tokens_u128).unwrap_or(Decimal::ZERO)
+            / Decimal::from(1_000_000_000_000_000_000u64);
     } else {
         // No Investment event found — use the expected amount as fallback
         tracing::warn!("No Investment event in logs, using expected amount");
-        decoded_amount = expected_amount.to_string().parse::<f64>().unwrap_or(0.0);
-        decoded_tokens = 0.0;
+        decoded_amount = expected_amount;
+        decoded_tokens = Decimal::ZERO;
     }
 
     let block_number = receipt.block_number.map(|b| b.as_u64()).unwrap_or(0);
