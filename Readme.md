@@ -1,8 +1,15 @@
 # IdeaCapital
 
-**Decentralized Invention Capital Platform — Where Ideas Get Funded, Protected, and Paid.**
+**Decentralized Invention Capital Protocol — Where Ideas Get Funded, Protected, and Paid.**
 
-IdeaCapital is a social funding platform that connects inventors with investors. Inventors post ideas, an AI agent structures them into patent-ready briefs, investors fund legal and prototyping costs in exchange for Royalty Tokens, and smart contracts distribute licensing revenue automatically.
+> **Status:** v0.5.2 (Alpha) | **Network:** Polygon Amoy
+
+IdeaCapital is a **DeIPF (Decentralized Intellectual Property Finance)** ecosystem. We bridge the "Valley of Death" between innovation and capital by tokenizing the provenance of ideas.
+
+**Key capabilities:**
+1.  **DeSci Novelty Verification:** Zero-Knowledge Proofs (ZKP) to prove invention priority without public disclosure.
+2.  **Liquid Democracy:** Reputation-weighted governance for patent DAOs.
+3.  **Programmable Equity:** Automated fee splitting (Arizona ABS compliant) for legal and platform costs.
 
 ```
 Inventor posts idea → AI structures it → Community funds it → Smart contracts pay royalties
@@ -92,20 +99,27 @@ IdeaCapital uses an **Event-Driven Architecture** with blockchain as **Source of
 
 ---
 
-## Key Features
+## 🌟 Core Features (v0.5.x)
 
-### 🎨 Vib3 Identity
-Every invention gets a unique, procedurally generated 4D visual identity ("Digital Seal") derived from its blockchain ID.
-- **Web:** Rendered via `@vib3code/sdk` (WebGL/Raymarching).
-- **Mobile:** Rendered via performant Flutter `CustomPainter`.
+### 🎨 Vib3 Identity Protocol
+Every invention generates a unique **4D Visual Fingerprint** derived deterministically from its blockchain hash.
+- **Web:** Ray-marched shaders via `@vib3code/sdk` (WebGL).
+- **Mobile:** High-performance procedural geometry via custom painting.
 
-### ⚖️ Arizona ABS Compliance
-Support for Alternative Business Structures (ABS) allowing fee sharing between lawyers and DAO members.
-- **Schema:** Fee splits are tracked in `compliance_fee_splits`.
-- **Logic:** The Vault automatically deducts legal/platform fees before distributing dividends.
+### 🛡️ Zero-Knowledge Provenance (DeSci)
+Solve the "Inventor's Dilemma" (proving you have an idea without showing it).
+- **Circuit:** `novelty.circom` proves possession of a document preimage matching a public hash.
+- **Privacy:** Content never leaves the user's device (roadmap goal) or secure enclave.
+
+### ⚖️ Compliant Financial Engine (The Vault)
+A Rust-based ledger that enforces **Arizona ABS (Alternative Business Structure)** laws.
+- **Fail-Closed:** Financial distributions abort if compliance checks fail.
+- **Audit Logs:** Immutable record of every fee split and dividend payment.
 
 ### ⚡ Reactive Indexing
-Zero-latency UI updates. The backend listens to blockchain events via Pub/Sub and updates the Firestore cache immediately upon confirmation.
+Zero-polling architecture.
+- **Flow:** Chain Event -> Vault -> Pub/Sub -> Cloud Function -> Firestore -> UI Stream.
+- **Latency:** <500ms from block confirmation to UI update.
 
 ---
 
