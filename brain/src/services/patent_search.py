@@ -10,7 +10,6 @@ Falls back to mock results for local development.
 
 import logging
 import os
-from typing import Optional
 
 import httpx
 

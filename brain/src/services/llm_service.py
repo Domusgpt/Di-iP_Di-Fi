@@ -7,9 +7,6 @@ Uses LangChain for prompt management and output parsing.
 import json
 import logging
 import os
-from typing import Optional
-
-import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -317,10 +314,10 @@ class LLMService:
                 "Prototype materials",
             ],
             "agent_reply": (
-                f"Interesting idea! I've created an initial draft based on your description. "
-                f"To make this stronger, can you tell me: "
-                f"1) What specific problem does this solve? "
-                f"2) How does the core mechanism work step by step? "
-                f"3) What makes this different from existing solutions?"
+                "Interesting idea! I've created an initial draft based on your description. "
+                "To make this stronger, can you tell me: "
+                "1) What specific problem does this solve? "
+                "2) How does the core mechanism work step by step? "
+                "3) What makes this different from existing solutions?"
             ),
         }

@@ -108,4 +108,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - run: npx ajv-cli validate -s schemas/InventionSchema.json --valid
+      # Use "compile" to verify the schema itself is valid
+      - run: npx ajv-cli compile -s schemas/InventionSchema.json
