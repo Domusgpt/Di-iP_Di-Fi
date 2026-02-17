@@ -155,6 +155,7 @@ async fn record_investment(
 }
 
 /// Verify a specific transaction hash against expected parameters.
+#[allow(dead_code)]
 pub async fn verify_transaction(
     rpc_url: &str,
     tx_hash: &str,

@@ -10,6 +10,7 @@ use tracing;
 
 /// Result of verifying a transaction on-chain.
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct VerificationResult {
     pub confirmed: bool,
     pub pending: bool,
@@ -95,8 +96,8 @@ pub async fn verify_investment_tx(
         "Investment(address,uint256,uint256)",
     ));
 
-    let mut decoded_amount: f64 = 0.0;
-    let mut decoded_tokens: f64 = 0.0;
+    let decoded_amount: f64;
+    let decoded_tokens: f64;
 
     if let Some(investment_log) = receipt
         .logs
@@ -118,10 +119,12 @@ pub async fn verify_investment_tx(
         // USDC has 6 decimals, tokens have 18 decimals
         decoded_amount = raw_amount.as_u128() as f64 / 1_000_000.0;
         decoded_tokens = raw_tokens.as_u128() as f64 / 1e18;
+        decoded_tokens = raw_tokens.as_u128() as f64 / 1e18;
     } else {
         // No Investment event found — use the expected amount as fallback
         tracing::warn!("No Investment event in logs, using expected amount");
         decoded_amount = expected_amount.to_string().parse::<f64>().unwrap_or(0.0);
+        decoded_tokens = 0.0;
     }
 
     let block_number = receipt.block_number.map(|b| b.as_u64()).unwrap_or(0);
@@ -147,6 +150,7 @@ pub async fn verify_investment_tx(
 }
 
 /// Check if a transaction hash is still pending (not yet mined).
+#[allow(dead_code)]
 pub async fn is_tx_pending(rpc_url: &str, tx_hash: &str) -> Result<bool> {
     let provider = Provider::<Http>::try_from(rpc_url)?;
     let hash: H256 = tx_hash.parse().map_err(|_| anyhow!("Invalid tx hash"))?;

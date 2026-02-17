@@ -51,6 +51,7 @@ struct PubSubMessageBody {
     #[serde(default)]
     data: String, // base64-encoded
     #[serde(default)]
+    #[allow(dead_code)]
     message_id: String,
 }
 

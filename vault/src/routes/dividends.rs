@@ -11,7 +11,6 @@ use uuid::Uuid;
 
 use crate::crypto::merkle::{build_merkle_tree, ClaimLeaf};
 use crate::models::dividend::{DividendClaim, DividendDistribution};
-use crate::services::token_calculator;
 
 pub fn router(pool: PgPool) -> Router {
     Router::new()
@@ -61,6 +60,7 @@ async fn distribute_dividends(
     // 0. ABS Compliance: Fetch fee splits
     // Check if there are any mandated fee splits (Lawyer, Platform, etc.)
     #[derive(sqlx::FromRow)]
+    #[allow(dead_code)]
     struct FeeSplit {
         recipient_type: String,
         recipient_address: String,

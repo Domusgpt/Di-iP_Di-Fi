@@ -66,7 +66,7 @@ async fn verify_transaction(
     .bind(Uuid::new_v4())
     .bind(&req.invention_id)
     .bind(&req.wallet_address)
-    .bind(&req.amount_usdc)
+    .bind(req.amount_usdc)
     .bind(&req.tx_hash)
     .bind(InvestmentStatus::Confirmed)
     .bind(verification.block_number as i64)

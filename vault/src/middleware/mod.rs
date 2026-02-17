@@ -9,15 +9,16 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use sha2::{Sha256, Digest};
+use sha2::Sha256;
 use hmac::{Hmac, Mac};
-use tracing;
 
+#[allow(dead_code)]
 type HmacSha256 = Hmac<Sha256>;
 
 /// Service-to-service auth middleware.
 /// Checks the `X-Vault-Auth` header against a shared secret HMAC.
 /// In production, this would verify a Google OIDC token instead.
+#[allow(dead_code)]
 pub async fn require_service_auth(
     headers: HeaderMap,
     request: Request,
@@ -72,6 +73,7 @@ pub async fn require_service_auth(
 }
 
 /// Health check bypass — no auth required.
+#[allow(dead_code)]
 pub async fn health_passthrough(
     request: Request,
     next: Next,
