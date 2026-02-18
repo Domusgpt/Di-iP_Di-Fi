@@ -23,7 +23,7 @@ IdeaCapital is currently in a **functional prototype** state. The core financial
 | **Dividend Logic** | ✅ **Working** | Correctly calculates shares and deducts fees. |
 | **Compliance** | ✅ **Working** | Fail-Closed logic prevents illegal distributions. |
 | **Merkle Tree** | ✅ **Working** | Validated against Solidity `MerkleProof.sol`. |
-| **Input Validation** | 🔴 **Critical** | `DistributeRequest` uses `f64` (floating point) for currency inputs. This risks precision loss before conversion to `Decimal`. |
+| **Input Validation** | ✅ **Fixed** | Refactored to use `rust_decimal::Decimal` exclusively. Precision loss risk eliminated. |
 | **Database** | 🟡 **Warning** | Migrations are messy; need squashing. |
 
 ### B. The Brain (Python) — AI & ZK
@@ -55,18 +55,15 @@ IdeaCapital is currently in a **functional prototype** state. The core financial
 
 ## 3. Critical Issues (P0)
 
-1.  **Floating Point Risk:** The Vault's API accepts `f64`. If a client sends `0.1` + `0.2`, the Vault might receive `0.30000000000000004`, causing strict equality checks to fail or penny-shaving errors.
-    *   *Fix:* Change API DTOs to use `String` or `Decimal` directly.
-2.  **Hardcoded Contracts:** The Frontend will break if deployed to a new network without a code change.
+1.  **Hardcoded Contracts:** The Frontend will break if deployed to a new network without a code change.
     *   *Fix:* Inject addresses via `flutter_dotenv` or a config provider.
-3.  **ZKP Reality Gap:** The "Novelty Proof" is currently just a "Hash Preimage Proof."
+2.  **ZKP Reality Gap:** The "Novelty Proof" is currently just a "Hash Preimage Proof."
     *   *Fix:* Expand the circuit to include a Merkle inclusion proof against a "Prior Art" tree.
 
 ## 4. Roadmap to v0.6.0 (Alpha)
 
 The following items must be completed before the Alpha release:
 
-1.  **Refactor Vault API:** Switch all currency inputs to `String` (parsed as `Decimal`).
-2.  **Activate ZKP:** Compile the circuit and generate valid SNARKs in the Python service.
-3.  **Config Injection:** Remove hardcoded addresses from Flutter.
+1.  **Activate ZKP:** Compile the circuit and generate valid SNARKs in the Python service.
+2.  **Config Injection:** Remove hardcoded addresses from Flutter.
 4.  **Integration Test:** Run a full end-to-end test on the Polygon Amoy testnet.
