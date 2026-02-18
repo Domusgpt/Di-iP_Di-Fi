@@ -235,6 +235,18 @@ Di-iP_Di-Fi/
 | [Vib3+ Integration](docs/vib3-integration.md) | Shader SDK integration, widgets, customization |
 | [Contributing](CONTRIBUTING.md) | How to contribute to the project |
 
+### Professional Documentation Suite
+
+| Document | Description |
+|----------|-------------|
+| [Executive Summary](docs/comprehensive/01_EXECUTIVE_SUMMARY.md) | High-level vision, problem, and solution |
+| [Technical Architecture](docs/comprehensive/02_TECHNICAL_ARCHITECTURE.md) | Deep dive into system components |
+| [Project Status](docs/comprehensive/03_PROJECT_STATUS.md) | Audit, current state, and critical issues |
+| [Operations Manual](docs/comprehensive/04_OPERATIONS_MANUAL.md) | Compliance, governance, and deployment |
+| [Pitch Deck](docs/comprehensive/05_PITCH_DECK.md) | Investor presentation script |
+| [Whitepaper](docs/whitepaper/WHITE_PAPER.md) | Academic paper on DeSci protocol |
+| [Governance](docs/governance/CONSTITUTION.md) | DAO Constitution and voting rules |
+
 ### Sub-Agent Specifications
 
 | Agent | Description |
