@@ -31,11 +31,18 @@ async function main() {
   await adapter.waitForDeployment();
   console.log("✅ StoryProtocolAdapter deployed to:", await adapter.getAddress());
 
+  // 5. Deploy Marketplace
+  const Marketplace = await ethers.getContractFactory("Marketplace");
+  const market = await Marketplace.deploy(USDC_ADDRESS);
+  await market.waitForDeployment();
+  console.log("✅ Marketplace deployed to:", await market.getAddress());
+
   console.log("\n🎉 Deployment Complete!");
   console.log("----------------------------------------------------");
   console.log(`IPNFT_ADDRESS=${await ipnft.getAddress()}`);
   console.log(`DIVIDEND_VAULT_ADDRESS=${await vault.getAddress()}`);
   console.log(`STORY_ADAPTER_ADDRESS=${await adapter.getAddress()}`);
+  console.log(`MARKETPLACE_ADDRESS=${await market.getAddress()}`);
   console.log("----------------------------------------------------");
 }
 
