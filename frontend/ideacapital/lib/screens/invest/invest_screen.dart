@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../providers/wallet_provider.dart';
+import '../../config/contracts.dart';
 
 /// Full-screen investment flow for backing a project with USDC.
 class InvestScreen extends ConsumerStatefulWidget {
@@ -22,16 +23,6 @@ class _InvestScreenState extends ConsumerState<InvestScreen> {
 
   final _dio = Dio();
   final List<double> _presetAmounts = [25, 50, 100, 250, 500, 1000];
-
-  // Contract addresses (from environment or config)
-  static const _usdcContract = String.fromEnvironment(
-    'USDC_CONTRACT',
-    defaultValue: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', // Polygon USDC
-  );
-  static const _crowdsaleContract = String.fromEnvironment(
-    'CROWDSALE_CONTRACT',
-    defaultValue: '0x0000000000000000000000000000000000000000',
-  );
 
   @override
   Widget build(BuildContext context) {
@@ -186,8 +177,8 @@ class _InvestScreenState extends ConsumerState<InvestScreen> {
 
       // Step 1: Approve USDC spending for the Crowdsale contract
       final approvalTx = await walletNotifier.approveUsdc(
-        usdcContract: _usdcContract,
-        spender: _crowdsaleContract,
+        usdcContract: ContractConfig.usdcAddress,
+        spender: ContractConfig.crowdsaleAddress,
         amount: amountInSmallestUnit,
       );
 
@@ -210,7 +201,7 @@ class _InvestScreenState extends ConsumerState<InvestScreen> {
       final investData = '0xb3db428b$idPadded$amountHex'; // investInProject(bytes32,uint256)
 
       final txHash = await walletNotifier.sendTransaction(
-        to: _crowdsaleContract,
+        to: ContractConfig.crowdsaleAddress,
         value: BigInt.zero,
         data: investData,
       );

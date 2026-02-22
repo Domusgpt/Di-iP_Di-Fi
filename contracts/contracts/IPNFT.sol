@@ -43,6 +43,7 @@ contract IPNFT is ERC721, ERC721URIStorage, Ownable {
 
     /**
      * @notice Set the Story Protocol Adapter address.
+     * @dev Restricted to onlyOwner. In production, owner should be the Timelock contract.
      */
     function setStoryAdapter(address _storyAdapter) external onlyOwner {
         storyAdapter = StoryProtocolAdapter(_storyAdapter);
