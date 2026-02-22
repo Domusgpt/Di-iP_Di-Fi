@@ -17,6 +17,25 @@ The platform is composed of four primary services:
 *   **Analysis:** Backend -> Pub/Sub `invention.analyze` -> Brain (AI/ZKP) -> Firestore.
 *   **Dividend:** Revenue -> Vault (API) -> Merkle Tree -> Ledger (Claim).
 
+### Data Flow Sequence
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant Contract
+    participant Vault
+    participant Firestore
+
+    User->>Frontend: Click "Invest"
+    Frontend->>Contract: invest(inventionId)
+    Contract-->>Vault: Emit InvestmentEvent
+    Vault->>Vault: Verify Transaction
+    Vault->>Firestore: Update Investment Status
+    Firestore-->>Frontend: Stream Update (Reactive)
+    Frontend-->>User: Show "Confirmed"
+```
+
 ---
 
 ## 2. The Vault (Rust) — Financial Engine
@@ -49,6 +68,7 @@ The Brain handles heavy computational tasks, including Large Language Model (LLM
 ### Key Components
 *   **ZKP Circuit (`brain/src/zkp/novelty.circom`):**
     *   A Circom 2.0 circuit that proves knowledge of a "preimage" (the invention text) that hashes to a public commitment, without revealing the text itself.
+    *   **Logic:** Proves $H(m) = C$ where $m$ is the private invention text and $C$ is the public commitment stored on-chain.
     *   Currently scaffolded to use `Poseidon(4)` hash function.
 *   **Proof Generation (`brain/src/services/zkp_service.py`):**
     *   Wraps the `snarkjs` command-line tool to generate `.zkey` and `.wasm` artifacts.
