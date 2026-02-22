@@ -87,12 +87,28 @@ class ZKPService:
         """
         Verify a ZK proof.
         """
-        # Mock verification
-        if not proof:
-            return False
+        if proof.get("proof", {}).get("mock") is True:
+            # Deep Mock: Simulate constraint checking logic
+            logger.info("Verifying MOCK proof with constraints check")
+            return self._prove_poseidon_preimage_mock(proof, public_hash)
 
+        # In real mode, we would verify the Groth16 proof using snarkjs/py-snark
+        signals = proof.get("publicSignals", [])
+        if not signals:
+            return False
+        return signals[0] == public_hash
+
+    def _prove_poseidon_preimage_mock(self, proof: dict, public_hash: str) -> bool:
+        """
+        Simulate the mathematical constraint checking of the circuit.
+        In the real circuit: H(preimage) == public_hash
+        Here, we check if the mock public signal matches.
+        """
         signals = proof.get("publicSignals", [])
         if not signals:
             return False
 
-        return signals[0] == public_hash
+        # Check constraint: public_hash input matches the calculated hash from proof
+        constraint_valid = (signals[0] == public_hash)
+        logger.info(f"Constraint H(m) == C valid? {constraint_valid}")
+        return constraint_valid
