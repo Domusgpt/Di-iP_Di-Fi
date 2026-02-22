@@ -8,6 +8,8 @@ use anyhow::Result;
 use ethers::prelude::*;
 use ethers::abi::{self, Token};
 use std::sync::Arc;
+use rust_decimal::Decimal;
+use rust_decimal::prelude::*;
 
 use crate::services::pubsub::{PubSubClient, InvestmentConfirmedMessage};
 
@@ -93,7 +95,7 @@ pub async fn watch_crowdsale_events(
 }
 
 /// Decode an Investment event log into (investor, amount_usdc, token_amount).
-fn decode_investment_log(log: &Log) -> Result<(Address, f64, f64)> {
+fn decode_investment_log(log: &Log) -> Result<(Address, Decimal, Decimal)> {
     // Topic[0] is the event signature hash
     // Topic[1] is the indexed `investor` address (padded to 32 bytes)
     let investor = if log.topics.len() > 1 {
@@ -120,9 +122,14 @@ fn decode_investment_log(log: &Log) -> Result<(Address, f64, f64)> {
     };
 
     // USDC uses 6 decimals
-    let amount_usdc = amount_raw.as_u128() as f64 / 1_000_000.0;
+    let amount_u128 = amount_raw.as_u128();
+    let amount_usdc = Decimal::from_u128(amount_u128).unwrap_or(Decimal::ZERO)
+        / Decimal::from(1_000_000);
+
     // Royalty tokens use 18 decimals
-    let token_amount = token_amount_raw.as_u128() as f64 / 1e18;
+    let token_amount_u128 = token_amount_raw.as_u128();
+    let token_amount = Decimal::from_u128(token_amount_u128).unwrap_or(Decimal::ZERO)
+        / Decimal::from(1_000_000_000_000_000_000u64);
 
     Ok((investor, amount_usdc, token_amount))
 }
@@ -132,8 +139,8 @@ async fn record_investment(
     pool: &sqlx::PgPool,
     tx_hash: &str,
     wallet_address: &str,
-    amount_usdc: f64,
-    token_amount: f64,
+    amount_usdc: Decimal,
+    token_amount: Decimal,
     block_number: u64,
 ) -> Result<()> {
     sqlx::query(
@@ -155,11 +162,12 @@ async fn record_investment(
 }
 
 /// Verify a specific transaction hash against expected parameters.
+#[allow(dead_code)]
 pub async fn verify_transaction(
     rpc_url: &str,
     tx_hash: &str,
     expected_contract: &str,
-    expected_amount: f64,
+    expected_amount: Decimal,
 ) -> Result<bool> {
     let provider = Provider::<Http>::try_from(rpc_url)?;
     let tx_hash: H256 = tx_hash.parse()?;
@@ -185,7 +193,7 @@ pub async fn verify_transaction(
         if let Ok((_, amount_usdc, _)) = decode_investment_log(log) {
             // Allow 1% slippage tolerance
             let diff = (amount_usdc - expected_amount).abs();
-            let tolerance = expected_amount * 0.01;
+            let tolerance = expected_amount * Decimal::from_str("0.01").unwrap();
             if diff <= tolerance {
                 return Ok(true);
             }

@@ -14,7 +14,6 @@ Output is published to `ai.processing.complete` topic.
 
 import logging
 import os
-import uuid
 from typing import Optional
 
 import httpx
@@ -24,13 +23,6 @@ from pydantic import BaseModel
 from src.services.llm_service import LLMService
 from src.services.patent_search import PatentSearchService
 from src.services.zkp_service import ZKPService
-from src.models.invention import (
-    InventionDraft,
-    SocialMetadata,
-    TechnicalBrief,
-    RiskAssessment,
-    PriorArt,
-)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

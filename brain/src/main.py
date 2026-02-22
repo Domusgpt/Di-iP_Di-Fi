@@ -14,7 +14,6 @@ Integration Points:
 - Reads/Writes: Firestore (conversation state)
 """
 
-import os
 import logging
 from contextlib import asynccontextmanager
 

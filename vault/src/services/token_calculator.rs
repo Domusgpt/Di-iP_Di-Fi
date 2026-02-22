@@ -4,7 +4,6 @@
 //! Also handles dividend distribution math.
 
 use rust_decimal::Decimal;
-use rust_decimal::prelude::*;
 
 /// Calculate the number of royalty tokens for a given investment.
 ///
@@ -12,6 +11,7 @@ use rust_decimal::prelude::*;
 ///
 /// Example: $50 investment in a $10,000 goal with 1,000,000 token supply and 20% royalty
 /// = (50 / 10000) * 1000000 * 0.20 = 1,000 tokens
+#[allow(dead_code)]
 pub fn calculate_token_amount(
     investment_usdc: Decimal,
     funding_goal_usdc: Decimal,
@@ -31,6 +31,7 @@ pub fn calculate_token_amount(
 /// Calculate a token holder's share of a dividend distribution.
 ///
 /// Formula: share = (holder_balance / total_supply) * revenue
+#[allow(dead_code)]
 pub fn calculate_dividend_share(
     holder_balance: Decimal,
     total_supply: Decimal,
