@@ -59,6 +59,8 @@ IdeaCapital is currently in a **functional prototype** state. The core financial
     *   *Fix:* Inject addresses via `flutter_dotenv` or a config provider.
 2.  **ZKP Reality Gap:** The "Novelty Proof" is currently just a "Hash Preimage Proof."
     *   *Fix:* Expand the circuit to include a Merkle inclusion proof against a "Prior Art" tree.
+4.  **Governance Centralization:** The `IPNFT` contract owner has unchecked power to swap the Story Protocol adapter.
+    *   *Fix:* Transfer ownership to a Timelock contract.
 
 ## 4. Roadmap to v0.6.0 (Alpha)
 

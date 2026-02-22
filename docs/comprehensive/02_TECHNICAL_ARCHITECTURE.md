@@ -17,6 +17,25 @@ The platform is composed of four primary services:
 *   **Analysis:** Backend -> Pub/Sub `invention.analyze` -> Brain (AI/ZKP) -> Firestore.
 *   **Dividend:** Revenue -> Vault (API) -> Merkle Tree -> Ledger (Claim).
 
+### Data Flow Sequence
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant Contract
+    participant Vault
+    participant Firestore
+
+    User->>Frontend: Click "Invest"
+    Frontend->>Contract: invest(inventionId)
+    Contract-->>Vault: Emit InvestmentEvent
+    Vault->>Vault: Verify Transaction
+    Vault->>Firestore: Update Investment Status
+    Firestore-->>Frontend: Stream Update (Reactive)
+    Frontend-->>User: Show "Confirmed"
+```
+
 ---
 
 ## 2. The Vault (Rust) — Financial Engine
@@ -49,6 +68,7 @@ The Brain handles heavy computational tasks, including Large Language Model (LLM
 ### Key Components
 *   **ZKP Circuit (`brain/src/zkp/novelty.circom`):**
     *   A Circom 2.0 circuit that proves knowledge of a "preimage" (the invention text) that hashes to a public commitment, without revealing the text itself.
+    *   **Logic:** Proves $H(m) = C$ where $m$ is the private invention text and $C$ is the public commitment stored on-chain.
     *   Currently scaffolded to use `Poseidon(4)` hash function.
 *   **Proof Generation (`brain/src/services/zkp_service.py`):**
     *   Wraps the `snarkjs` command-line tool to generate `.zkey` and `.wasm` artifacts.
@@ -101,3 +121,17 @@ A cross-platform (iOS, Android, Web) application built with Flutter.
 *   **Database:** Cloud SQL (PostgreSQL).
 *   **Messaging:** Cloud Pub/Sub.
 *   **IaC:** Terraform configurations in `infra/terraform/` manage the entire stack.
+
+---
+
+## 7. Security & Risk Analysis
+
+### 7.1 Smart Contract Risks
+*   **Governance Attacks:** While `ReputationToken` is Soulbound (preventing flash loans), the `Governance` contract's voting power calculation (`getVotingPower`) currently relies on a simple `balanceOf` check. Future upgrades must implement checkpointing (e.g., `ERC20Votes`) to prevent voting manipulation via delegation loops or snapshot timing attacks.
+*   **Centralization:** The `IPNFT` contract allows the owner to update the `storyAdapter`. This is a centralization vector that should be moved to a Timelock controller governed by the DAO in v1.0.
+
+### 7.2 AI Risks
+*   **Prompt Injection:** The `Invention Agent` uses a system prompt to structure data. Malicious users could attempt to inject instructions to bypass novelty checks. Mitigation: The ZKP circuit acts as a cryptographic check on the *content* hash, ensuring that what was analyzed matches what is committed on-chain.
+
+### 7.3 Financial Risks
+*   **Precision:** The Vault uses `rust_decimal` for all financial calculations. However, the interface with the blockchain (EVM) requires conversion to integer units (Wei). The `transaction_verifier` strictly enforces 6 decimals for USDC and 18 for Royalty Tokens to prevent rounding exploits.

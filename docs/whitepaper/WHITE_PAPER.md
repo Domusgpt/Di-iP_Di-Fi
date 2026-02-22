@@ -62,6 +62,11 @@ The Ledger is the "Ownership Layer."
 *   **IP-NFT:** An ERC-721 token that represents the root ownership. It integrates with **Story Protocol** to register the asset in a global IP index.
 *   **Reputation Token (REP):** A Soulbound (non-transferable) ERC-20 token. It is minted to inventors and successful backers. REP is used for governance voting power.
 
+### 3.4 Vib3 Identity Protocol
+Visual provenance is established via the **Vib3** standard.
+*   **Deterministic Generation:** Each invention ID seeds a unique 4D shader animation ("The Seal").
+*   **Fraud Prevention:** The visual pattern is mathematically tied to the contract address, making it instantly recognizable and hard to spoof in a UI.
+
 ---
 
 ## 4. Tokenomics
@@ -81,6 +86,13 @@ The Ledger is the "Ownership Layer."
 ### 4.3 Fee Structure
 *   **Platform Fee:** 2.5% of funds raised and dividends distributed.
 *   **Legal Fee:** Variable (approx. 20-30%) paid directly to the partner law firm via the Vault's split logic.
+
+### 4.4 Token Valuation Model
+Royalty Tokens are priced based on the **Expected Net Present Value (eNPV)** of the patent's future cash flows.
+*   **Initial Price:** Fixed during the Crowdsale (e.g., $0.10/token).
+*   **Secondary Market:** Float based on demand, driven by:
+    *   **Milestones:** Patent granted, prototype success, licensing deal signed.
+    *   **Revenue:** Dividends paid to holders increase the token's yield appeal.
 
 ---
 
@@ -110,6 +122,18 @@ IdeaCapital operates under the **Arizona Alternative Business Structure (ABS)** 
 
 ---
 
-## 8. Conclusion
+## 8. Risk Factors
+
+### 8.1 Regulatory Risk
+The tokenization of future revenue streams may be classified as a security in certain jurisdictions. IdeaCapital mitigates this via the Arizona ABS structure, ensuring that tokens represent economic interest in a legal entity rather than a direct claim on IP.
+
+### 8.2 Technical Risk
+Smart contracts are immutable. While audited, bugs may exist. The platform employs a "Fail-Closed" financial engine (The Vault) to prevent unauthorized withdrawals or incorrect dividend distributions even in the event of partial system failure.
+
+---
+
+## 9. Conclusion
 
 IdeaCapital is not just a crowdfunding platform; it is a new financial primitive for the knowledge economy. By aligning incentives between inventors, investors, and experts, we can bridge the Valley of Death and accelerate the pace of human innovation.
+
+**Join the movement. Fund the future.**
