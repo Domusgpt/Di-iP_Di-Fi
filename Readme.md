@@ -235,17 +235,15 @@ Di-iP_Di-Fi/
 | [Vib3+ Integration](docs/vib3-integration.md) | Shader SDK integration, widgets, customization |
 | [Contributing](CONTRIBUTING.md) | How to contribute to the project |
 
-### Professional Documentation Suite
+### Professional Documentation Suite (v2.0)
 
 | Document | Description |
 |----------|-------------|
-| [Executive Summary](docs/comprehensive/01_EXECUTIVE_SUMMARY.md) | High-level vision, problem, and solution |
-| [Technical Architecture](docs/comprehensive/02_TECHNICAL_ARCHITECTURE.md) | Deep dive into system components |
-| [Project Status](docs/comprehensive/03_PROJECT_STATUS.md) | Audit, current state, and critical issues |
-| [Operations Manual](docs/comprehensive/04_OPERATIONS_MANUAL.md) | Compliance, governance, and deployment |
-| [Pitch Deck](docs/comprehensive/05_PITCH_DECK.md) | Investor presentation script |
-| [Whitepaper](docs/whitepaper/WHITE_PAPER.md) | Academic paper on DeSci protocol |
-| [Governance](docs/governance/CONSTITUTION.md) | DAO Constitution and voting rules |
+| [Whitepaper](docs/suite/01_WHITEPAPER.md) | The definitive academic and economic paper on the protocol. |
+| [Technical Manual](docs/suite/02_TECHNICAL_MANUAL.md) | Deep dive into ZKP circuits, Rust Vault, and Smart Contracts. |
+| [Operations Manual](docs/suite/03_OPERATIONS_MANUAL.md) | Governance procedures, Arizona ABS compliance, and emergency ops. |
+| [Developer Handbook](docs/suite/04_DEVELOPER_HANDBOOK.md) | Zero-to-hero guide for contributors. |
+| [Pitch Deck](docs/suite/05_PITCH_DECK.md) | Series A investor presentation. |
 
 ### Sub-Agent Specifications
 
