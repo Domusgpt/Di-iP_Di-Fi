@@ -122,7 +122,17 @@ IdeaCapital operates under the **Arizona Alternative Business Structure (ABS)** 
 
 ---
 
-## 8. Conclusion
+## 8. Risk Factors
+
+### 8.1 Regulatory Risk
+The tokenization of future revenue streams may be classified as a security in certain jurisdictions. IdeaCapital mitigates this via the Arizona ABS structure, ensuring that tokens represent economic interest in a legal entity rather than a direct claim on IP.
+
+### 8.2 Technical Risk
+Smart contracts are immutable. While audited, bugs may exist. The platform employs a "Fail-Closed" financial engine (The Vault) to prevent unauthorized withdrawals or incorrect dividend distributions even in the event of partial system failure.
+
+---
+
+## 9. Conclusion
 
 IdeaCapital is not just a crowdfunding platform; it is a new financial primitive for the knowledge economy. By aligning incentives between inventors, investors, and experts, we can bridge the Valley of Death and accelerate the pace of human innovation.
 
